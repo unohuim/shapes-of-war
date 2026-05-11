@@ -1,0 +1,21 @@
+#nullable enable
+
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ShapesOfWar.Domain
+{
+    public sealed class ActionCardHand
+    {
+        private readonly List<ActionCardType> _cards;
+
+        public ActionCardHand(IEnumerable<ActionCardType>? cards = null)
+        {
+            _cards = cards?.ToList() ?? new List<ActionCardType>();
+        }
+
+        public int Count => _cards.Count;
+
+        internal IReadOnlyList<ActionCardType> Cards => _cards;
+    }
+}

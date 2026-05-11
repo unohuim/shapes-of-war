@@ -1,0 +1,21 @@
+{
+  "name": "ShapesOfWar.Domain.Tests",
+  "rootNamespace": "ShapesOfWar.Domain.Tests",
+  "references": [
+    "ShapesOfWar.Domain"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "noEngineReferences": false
+}
