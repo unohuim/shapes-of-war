@@ -216,6 +216,8 @@ Current action card sources:
 - Win Battle Royale to draw 1 action card.
 - Eliminate another player to draw 1 action card.
 
+If a player attempts to sacrifice or discard a unit to draw an action card but no card can be drawn because both the action card deck and discard pile are empty, the unit is not consumed.
+
 No other action-card acquisition methods are currently defined.
 
 ## Elimination

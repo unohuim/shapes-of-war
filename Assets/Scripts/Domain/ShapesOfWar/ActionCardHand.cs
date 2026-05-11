@@ -17,5 +17,10 @@ namespace ShapesOfWar.Domain
         public int Count => _cards.Count;
 
         internal IReadOnlyList<ActionCardType> Cards => _cards;
+
+        internal void Add(ActionCardType card)
+        {
+            _cards.Add(card);
+        }
     }
 }

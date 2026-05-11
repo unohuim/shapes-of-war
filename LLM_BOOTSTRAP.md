@@ -129,6 +129,8 @@ Action card acquisition:
 - Win Battle Royale to draw 1 action card.
 - Eliminate another player to draw 1 action card.
 
+If a player attempts to sacrifice or discard a unit to draw an action card but no card can be drawn because both the action card deck and discard pile are empty, the unit is not consumed.
+
 Sacrificed or discarded units return to shared supply or circulation and are not permanently removed from the game.
 
 Used action cards go to an action card discard pile after resolution. Counter cards used in Counter chains also go to the discard pile after the chain resolves.
@@ -263,8 +265,8 @@ The implementation roadmap is in `docs/PR_ROADMAP.md`.
 Current implementation status:
 
 - PR-001: Core Game State Model is implemented.
-- PR-002: Setup and Economy Flow is not implemented.
-- PR-003: Action Card Deck and Spend-Phase Card Acquisition is not implemented.
+- PR-002: Setup and Economy Flow is implemented.
+- PR-003: Action Card Deck and Spend-Phase Card Acquisition is implemented.
 - PR-004: Action Phase Choice and Non-Raid Action Cards is not implemented.
 - PR-005: Raid Base is not implemented.
 - PR-006: Battle Royale is not implemented.
@@ -277,6 +279,31 @@ PR-001 implementation summary:
 - EditMode tests live under `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Implemented `Game`, `Player`, `Base`, `PlayerPublicState`, `BaseType`, `UnitShape`, `ResourceType`, `ActionCardType`, `ActionCardDeck`, `ActionCardHand`, and `EnumCountSet`.
 - Tracks player elimination state, public unit counts, public resource counts, private/internal action card identities, public action card count, standard 50-card action deck composition, and 2-4 player validation.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-002 implementation summary:
+
+- Implemented setup through `Game.CreateNew(...)`.
+- Implemented unit counting, resource collection, unit buying, linear base upgrades, and spend-phase unit sacrifice for action card draw.
+- Setup creates each player with Wood Base, 3 base points, 3 Squares, 0 Wood, 0 Stone, 0 Metal, and 0 action cards.
+- Buying units spends the documented resource cost and adds the unit immediately.
+- Base upgrades support Wood -> Stone and Stone -> Metal only.
+- Sacrificing a unit removes 1 unit of the chosen shape and draws 1 action card if the deck has one.
+- Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-003 implementation summary:
+
+- Formalized action card draw pile plus discard pile behavior in `ActionCardDeck`.
+- Added draw hooks through `Game.TryDrawActionCard(...)`.
+- Added used-card discard hook through `Game.DiscardUsedActionCard(...)`.
+- Spend-phase unit sacrifice draws through the formal deck behavior.
+- Empty deck draws reshuffle the discard pile into a new deck.
+- Empty deck plus empty discard pile draws no card.
+- Preserved public action card count with private/internal action card identities.
+- Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
 

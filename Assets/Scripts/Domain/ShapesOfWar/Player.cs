@@ -50,6 +50,31 @@ namespace ShapesOfWar.Domain
 
         internal ActionCardHand ActionCards { get; }
 
+        internal void AddUnit(UnitShape unitShape, int count)
+        {
+            UnitCounts.Add(unitShape, count);
+        }
+
+        internal bool TrySpendUnit(UnitShape unitShape, int count)
+        {
+            return UnitCounts.TrySpend(unitShape, count);
+        }
+
+        internal void AddResource(ResourceType resourceType, int count)
+        {
+            ResourceCounts.Add(resourceType, count);
+        }
+
+        internal bool TrySpendResource(ResourceType resourceType, int count)
+        {
+            return ResourceCounts.TrySpend(resourceType, count);
+        }
+
+        internal void AddActionCard(ActionCardType actionCard)
+        {
+            ActionCards.Add(actionCard);
+        }
+
         public PlayerPublicState ToPublicState()
         {
             return new PlayerPublicState(

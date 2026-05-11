@@ -68,6 +68,18 @@ Implementation blockers:
 
 ## PR-002: Setup and Economy Flow
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Implement starting setup and basic turn economy.
 
 Scope:
@@ -133,6 +145,18 @@ Implementation blockers:
 
 ## PR-003: Action Card Deck and Spend-Phase Card Acquisition
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Implement the action card deck and action card acquisition.
 
 Scope:
@@ -147,7 +171,9 @@ Scope:
 - Unlimited action card hand size.
 - Sacrifice or discard 1 unit during the spend phase to draw 1 action card.
 - Sacrificed units return to supply or circulation.
-- Spent or discarded cards return to discard or circulation according to the simplest documented assumption.
+- Used action cards go to an action card discard pile after resolution.
+- Empty action deck draws reshuffle the discard pile into a new deck.
+- Empty deck plus empty discard pile draws no card.
 
 Out of scope:
 

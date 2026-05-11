@@ -52,5 +52,31 @@ namespace ShapesOfWar.Domain
 
             _counts[key] = value;
         }
+
+        internal void Add(TEnum key, int value)
+        {
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Added counts cannot be negative.");
+            }
+
+            Set(key, Get(key) + value);
+        }
+
+        internal bool TrySpend(TEnum key, int value)
+        {
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Spent counts cannot be negative.");
+            }
+
+            if (Get(key) < value)
+            {
+                return false;
+            }
+
+            Set(key, Get(key) - value);
+            return true;
+        }
     }
 }

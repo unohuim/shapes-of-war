@@ -15,9 +15,19 @@ namespace ShapesOfWar.Domain
             Points = points;
         }
 
-        public BaseType Type { get; }
+        public BaseType Type { get; private set; }
 
-        public int Points { get; }
+        public int Points { get; private set; }
+
+        internal void UpgradeTo(BaseType type, int points)
+        {
+            if (points < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(points), "Base points cannot be negative.");
+            }
+
+            Type = type;
+            Points = points;
+        }
     }
 }
-
