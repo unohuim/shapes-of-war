@@ -209,10 +209,20 @@ namespace ShapesOfWar.Domain
 
         public bool TryPlayRaidBase(int playerIndex, int targetPlayerIndex, UnitShape raidingUnitShape)
         {
-            GetPlayer(playerIndex);
+            Player player = GetPlayer(playerIndex);
             GetTargetPlayer(playerIndex, targetPlayerIndex);
-            _ = raidingUnitShape;
-            return false;
+
+            if (_pendingAction != null ||
+                player.UnitCounts.Get(raidingUnitShape) < 1 ||
+                !CanChooseActionPhaseOption(playerIndex) ||
+                !player.ActionCards.TryRemove(ActionCardType.RaidBase))
+            {
+                return false;
+            }
+
+            _actionPhaseChoices[playerIndex] = ActionPhaseChoice.ActionCard;
+            _pendingAction = PendingAction.CreateRaidBase(playerIndex, targetPlayerIndex, raidingUnitShape);
+            return true;
         }
 
         public bool TryPlayCounterAsActionPhaseCard(int playerIndex)
@@ -236,10 +246,23 @@ namespace ShapesOfWar.Domain
 
         public bool TryDefendPendingActionWithUnits(int defenderPlayerIndex, UnitShape unitShape, int count)
         {
-            GetPlayer(defenderPlayerIndex);
-            _ = unitShape;
-            _ = count;
-            return false;
+            Player defender = GetPlayer(defenderPlayerIndex);
+
+            if (_pendingAction == null ||
+                _pendingAction.ActionCard != ActionCardType.RaidBase ||
+                _pendingAction.TargetPlayerIndex != defenderPlayerIndex ||
+                !_pendingAction.RaidingUnitShape.HasValue ||
+                _pendingAction.HasDefense ||
+                _pendingAction.CounterCount % 2 != 0 ||
+                !TryGetMinimumDefenderCount(_pendingAction.RaidingUnitShape.Value, unitShape, out int requiredCount) ||
+                count != requiredCount ||
+                defender.UnitCounts.Get(unitShape) < count)
+            {
+                return false;
+            }
+
+            _pendingAction.AddDefense(unitShape, count);
+            return true;
         }
 
         public bool ResolvePendingAction()
@@ -252,7 +275,11 @@ namespace ShapesOfWar.Domain
             PendingAction action = _pendingAction;
             bool actionResolved = false;
 
-            if (action.CounterCount % 2 == 0)
+            if (action.ActionCard == ActionCardType.RaidBase)
+            {
+                actionResolved = ResolveRaidBase(action, action.CounterCount % 2 == 0);
+            }
+            else if (action.CounterCount % 2 == 0)
             {
                 actionResolved = ResolveUncounteredAction(action);
             }
@@ -361,6 +388,32 @@ namespace ShapesOfWar.Domain
             return false;
         }
 
+        private bool ResolveRaidBase(PendingAction action, bool countersAllowRaid)
+        {
+            Player activePlayer = GetPlayer(action.ActivePlayerIndex);
+            Player targetPlayer = GetPlayer(action.TargetPlayerIndex);
+
+            if (!action.RaidingUnitShape.HasValue ||
+                !activePlayer.TrySpendUnit(action.RaidingUnitShape.Value, 1))
+            {
+                return false;
+            }
+
+            if (!countersAllowRaid)
+            {
+                return false;
+            }
+
+            if (action.DefendingUnitShape.HasValue && action.DefendingUnitCount.HasValue)
+            {
+                targetPlayer.TrySpendUnit(action.DefendingUnitShape.Value, action.DefendingUnitCount.Value);
+                return false;
+            }
+
+            targetPlayer.Base.LosePoints(1);
+            return true;
+        }
+
         private static ResourceType GetUnitCostResource(UnitShape unitShape)
         {
             switch (unitShape)
@@ -376,6 +429,52 @@ namespace ShapesOfWar.Domain
             }
         }
 
+        private static bool TryGetMinimumDefenderCount(UnitShape raidingUnitShape, UnitShape defendingUnitShape, out int count)
+        {
+            count = 0;
+
+            if (raidingUnitShape == UnitShape.Triangle)
+            {
+                if (defendingUnitShape == UnitShape.Square)
+                {
+                    count = 2;
+                    return true;
+                }
+
+                if (defendingUnitShape == UnitShape.Circle)
+                {
+                    count = 3;
+                    return true;
+                }
+            }
+
+            if (raidingUnitShape == UnitShape.Square)
+            {
+                if (defendingUnitShape == UnitShape.Triangle)
+                {
+                    count = 1;
+                    return true;
+                }
+
+                if (defendingUnitShape == UnitShape.Circle)
+                {
+                    count = 2;
+                    return true;
+                }
+            }
+
+            if (raidingUnitShape == UnitShape.Circle)
+            {
+                if (defendingUnitShape == UnitShape.Triangle || defendingUnitShape == UnitShape.Square)
+                {
+                    count = 1;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private sealed class PendingAction
         {
             private PendingAction(
@@ -383,13 +482,15 @@ namespace ShapesOfWar.Domain
                 int activePlayerIndex,
                 int targetPlayerIndex,
                 ResourceType? resourceType,
-                UnitShape? unitShape)
+                UnitShape? unitShape,
+                UnitShape? raidingUnitShape)
             {
                 ActionCard = actionCard;
                 ActivePlayerIndex = activePlayerIndex;
                 TargetPlayerIndex = targetPlayerIndex;
                 ResourceType = resourceType;
                 UnitShape = unitShape;
+                RaidingUnitShape = raidingUnitShape;
             }
 
             public ActionCardType ActionCard { get; }
@@ -402,6 +503,14 @@ namespace ShapesOfWar.Domain
 
             public UnitShape? UnitShape { get; }
 
+            public UnitShape? RaidingUnitShape { get; }
+
+            public UnitShape? DefendingUnitShape { get; private set; }
+
+            public int? DefendingUnitCount { get; private set; }
+
+            public bool HasDefense => DefendingUnitShape.HasValue && DefendingUnitCount.HasValue;
+
             public int CounterCount { get; private set; }
 
             public static PendingAction CreateResourceTheft(int activePlayerIndex, int targetPlayerIndex, ResourceType resourceType)
@@ -411,6 +520,7 @@ namespace ShapesOfWar.Domain
                     activePlayerIndex,
                     targetPlayerIndex,
                     resourceType,
+                    null,
                     null);
             }
 
@@ -421,12 +531,30 @@ namespace ShapesOfWar.Domain
                     activePlayerIndex,
                     targetPlayerIndex,
                     null,
-                    unitShape);
+                    unitShape,
+                    null);
+            }
+
+            public static PendingAction CreateRaidBase(int activePlayerIndex, int targetPlayerIndex, UnitShape raidingUnitShape)
+            {
+                return new PendingAction(
+                    ActionCardType.RaidBase,
+                    activePlayerIndex,
+                    targetPlayerIndex,
+                    null,
+                    null,
+                    raidingUnitShape);
             }
 
             public void AddCounter()
             {
                 CounterCount++;
+            }
+
+            public void AddDefense(UnitShape unitShape, int count)
+            {
+                DefendingUnitShape = unitShape;
+                DefendingUnitCount = count;
             }
         }
     }

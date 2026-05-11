@@ -29,5 +29,15 @@ namespace ShapesOfWar.Domain
             Type = type;
             Points = points;
         }
+
+        internal void LosePoints(int points)
+        {
+            if (points < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(points), "Lost points cannot be negative.");
+            }
+
+            Points = Math.Max(0, Points - points);
+        }
     }
 }

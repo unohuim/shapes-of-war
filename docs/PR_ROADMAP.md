@@ -278,6 +278,19 @@ Implementation blockers:
 
 ## PR-005: Raid Base
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-005 domain validation passed for successful raids, defended raids, and Counter-stopped raids.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Implement Raid Base action and unit-based raid defense.
 
 Scope:

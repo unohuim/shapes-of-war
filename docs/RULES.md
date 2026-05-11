@@ -185,6 +185,8 @@ When the action card deck is empty and a player needs to draw, shuffle the disca
 
 When a player defends against Raid Base using units, all defending units committed to stop the raid are discarded after resolution. The raiding unit is also discarded after resolution. This applies whether the raid succeeds or fails.
 
+The defender commits the minimum valid defending group needed to beat the raiding unit. Wasteful over-commitment is not allowed. Same-shape matching units do not defend against a raid.
+
 ## Battle Royale
 
 A player may start Battle Royale during their action phase.

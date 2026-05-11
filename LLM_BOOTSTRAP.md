@@ -268,7 +268,7 @@ Current implementation status:
 - PR-002: Setup and Economy Flow is implemented.
 - PR-003: Action Card Deck and Spend-Phase Card Acquisition is implemented.
 - PR-004: Action Phase Choice and Non-Raid Action Cards is implemented.
-- PR-005: Raid Base is not implemented.
+- PR-005: Raid Base is implemented.
 - PR-006: Battle Royale is not implemented.
 - PR-007: Elimination and Game End is not implemented.
 - PR-008: Minimal Playable UI / Debug Harness is not implemented.
@@ -319,6 +319,20 @@ PR-004 implementation summary:
 - Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
 - Focused local PR-004 domain validation passed for Resource Theft, Unit Kill, and odd/even Counter chains.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-005 implementation summary:
+
+- Implemented Raid Base as an action-phase card that commits 1 raiding unit and uses the existing pending-action and Counter-chain model.
+- Implemented Raid Base unit defense using the documented single-shape combat assumptions.
+- Defender commits only the minimum valid defending group; same-shape matches, insufficient groups, and over-commitment are rejected.
+- Successful undefended raids reduce the target base by exactly 1 point.
+- Raiding units are discarded after Raid Base resolution, and defending units committed to successful defense are discarded after resolution.
+- Raid Base and all Counters used in the chain move to the action card discard pile after resolution.
+- Base points may reach 0, but full elimination and game-end resolution remain deferred to PR-007.
+- Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-005 domain validation passed for successful raids, defended raids, and Counter-stopped raids.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
 
 Known roadmap blockers:

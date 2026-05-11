@@ -584,7 +584,7 @@ namespace ShapesOfWar.Domain.Tests
         }
 
         [Test]
-        public void RaidBaseIsNotResolvedInPr004()
+        public void ActivePlayerCanPlayRaidBaseDuringActionPhase()
         {
             Game game = CreateActionCardGame(
                 CreatePlayer(
@@ -600,11 +600,314 @@ namespace ShapesOfWar.Domain.Tests
 
             bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
 
+            Assert.That(played, Is.True);
+            Assert.That(game.HasPendingAction, Is.True);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.ActionCard));
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(0));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void RaidBaseCannotBePlayedWithoutRaidBaseCard()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        })),
+                CreatePlayer(1, "Player 2"));
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.HasPendingAction, Is.False);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.None));
+        }
+
+        [Test]
+        public void RaidBaseCannotBePlayedWithoutRaidingUnit()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2"));
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Triangle);
+
             Assert.That(played, Is.False);
             Assert.That(game.HasPendingAction, Is.False);
             Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
-            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
-            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void RaidBaseCardGoesToDiscardAfterResolution()
+        {
+            Game game = CreateRaidGame(UnitShape.Square);
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.RaidBase), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void RaidBaseCannotBeResolvedTwice()
+        {
+            Game game = CreateRaidGame(UnitShape.Square);
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool firstResolve = game.ResolvePendingAction();
+            bool secondResolve = game.ResolvePendingAction();
+
+            Assert.That(firstResolve, Is.True);
+            Assert.That(secondResolve, Is.False);
+        }
+
+        [Test]
+        public void CounterCanStopRaidBase()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool countered = game.TryRespondWithCounter(1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(countered, Is.True);
+            Assert.That(resolved, Is.False);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(3));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(0));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.RaidBase), Is.EqualTo(1));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.Counter), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CounterCanRespondToAnotherCounterDuringRaidBaseChain()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase, ActionCardType.Counter })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool firstCounter = game.TryRespondWithCounter(1);
+            bool secondCounter = game.TryRespondWithCounter(0);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(firstCounter, Is.True);
+            Assert.That(secondCounter, Is.True);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(2));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.Counter), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void OddNumberOfCountersStopsRaidBase()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Circle] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Circle);
+            game.TryRespondWithCounter(1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(resolved, Is.False);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void EvenNumberOfCountersAllowsRaidBaseToContinue()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Circle] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase, ActionCardType.Counter })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Circle);
+            game.TryRespondWithCounter(1);
+            game.TryRespondWithCounter(0);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void PublicActionCardCountsUpdateAfterRaidBaseAndCounters()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.TryRespondWithCounter(1);
+
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().ActionCardCount, Is.EqualTo(0));
+            Assert.That(HasPublicActionCardIdentityProperty(typeof(PlayerPublicState)), Is.False);
+        }
+
+        [Test]
+        public void SuccessfulRaidBaseDamagesBaseAndDiscardsRaidingUnit()
+        {
+            Game game = CreateRaidGame(UnitShape.Square);
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(2));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void RaidBaseCanReduceBaseToZeroWithoutPr007EliminationResolution()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2", playerBase: new Base(BaseType.Wood, 1)));
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().IsEliminated, Is.False);
+        }
+
+        [TestCase(UnitShape.Triangle, UnitShape.Square, 2)]
+        [TestCase(UnitShape.Triangle, UnitShape.Circle, 3)]
+        [TestCase(UnitShape.Square, UnitShape.Triangle, 1)]
+        [TestCase(UnitShape.Square, UnitShape.Circle, 2)]
+        [TestCase(UnitShape.Circle, UnitShape.Triangle, 1)]
+        [TestCase(UnitShape.Circle, UnitShape.Square, 1)]
+        public void DefenderCanStopRaidBaseWithMinimumValidUnitGroup(
+            UnitShape raidingUnitShape,
+            UnitShape defendingUnitShape,
+            int defendingUnitCount)
+        {
+            Game game = CreateRaidDefenseGame(raidingUnitShape, defendingUnitShape, defendingUnitCount);
+
+            bool played = game.TryPlayRaidBase(0, 1, raidingUnitShape);
+            bool defended = game.TryDefendPendingActionWithUnits(1, defendingUnitShape, defendingUnitCount);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(defended, Is.True);
+            Assert.That(resolved, Is.False);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(3));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[raidingUnitShape], Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[defendingUnitShape], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void DefenderCannotDefendWithSameShapeMatchingUnits()
+        {
+            Game game = CreateRaidDefenseGame(UnitShape.Square, UnitShape.Square, 1);
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool defended = game.TryDefendPendingActionWithUnits(1, UnitShape.Square, 1);
+
+            Assert.That(played, Is.True);
+            Assert.That(defended, Is.False);
+        }
+
+        [Test]
+        public void DefenderCannotDefendWithInsufficientUnits()
+        {
+            Game game = CreateRaidDefenseGame(UnitShape.Triangle, UnitShape.Square, 2);
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Triangle);
+            bool defended = game.TryDefendPendingActionWithUnits(1, UnitShape.Square, 1);
+
+            Assert.That(played, Is.True);
+            Assert.That(defended, Is.False);
+        }
+
+        [Test]
+        public void DefenderCannotOverCommitBeyondMinimumValidDefendingGroup()
+        {
+            Game game = CreateRaidDefenseGame(UnitShape.Circle, UnitShape.Square, 2);
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Circle);
+            bool defended = game.TryDefendPendingActionWithUnits(1, UnitShape.Square, 2);
+
+            Assert.That(played, Is.True);
+            Assert.That(defended, Is.False);
         }
 
         [Test]
@@ -1007,6 +1310,46 @@ namespace ShapesOfWar.Domain.Tests
         private static Game CreateActionCardGame(Player playerOne, Player playerTwo)
         {
             return new Game(new[] { playerOne, playerTwo }, new ActionCardDeck(Array.Empty<ActionCardType>()));
+        }
+
+        private static Game CreateRaidGame(UnitShape raidingUnitShape)
+        {
+            return CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [raidingUnitShape] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2"));
+        }
+
+        private static Game CreateRaidDefenseGame(
+            UnitShape raidingUnitShape,
+            UnitShape defendingUnitShape,
+            int defendingUnitCount)
+        {
+            return CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [raidingUnitShape] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [defendingUnitShape] = defendingUnitCount
+                        })));
         }
 
         private static Player CreatePlayer(
