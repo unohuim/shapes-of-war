@@ -53,7 +53,8 @@ The only current action cards are:
 - The game likely supports 2-4 players.
 - A player loses when their base points reach 0.
 - When a player's base reaches 0, that player is eliminated.
-- Game end when only one player remains is in `docs/PR_ROADMAP.md` for PR-007, but is not yet finalized in `docs/RULES.md`; treat it as pending clarification before implementation.
+- The game ends when only one player remains.
+- The remaining player is the winner.
 
 ### Bases
 
@@ -130,6 +131,10 @@ Action card acquisition:
 
 Sacrificed or discarded units return to shared supply or circulation and are not permanently removed from the game.
 
+Used action cards go to an action card discard pile after resolution. Counter cards used in Counter chains also go to the discard pile after the chain resolves.
+
+When the action card deck is empty and a player needs to draw, shuffle the discard pile to create a new action card deck. If both the deck and discard pile are empty, no card is drawn.
+
 ### Turn Structure
 
 On a player's turn:
@@ -204,6 +209,8 @@ Raid Base flow:
 
 Only Raid Base can be defended with units.
 
+When a player defends against Raid Base using units, all defending units committed to stop the raid are discarded after resolution. The raiding unit is also discarded after resolution. This applies whether the raid succeeds or fails.
+
 ### Battle Royale
 
 - A player may start Battle Royale during their action phase.
@@ -235,6 +242,8 @@ On elimination:
 - The eliminated player's resources are discarded.
 - The eliminated player's action cards are discarded.
 - The player who eliminated them draws 1 action card.
+- The game ends when only one player remains.
+- The remaining player is the winner.
 
 ## 5. Components and Supplies
 
@@ -251,20 +260,29 @@ Unit and resource supplies are effectively unlimited for gameplay. Physical comp
 
 The implementation roadmap is in `docs/PR_ROADMAP.md`.
 
-- PR-001: Core Game State Model.
-- PR-002: Setup and Economy Flow.
-- PR-003: Action Card Deck and Spend-Phase Card Acquisition.
-- PR-004: Action Phase Choice and Non-Raid Action Cards.
-- PR-005: Raid Base.
-- PR-006: Battle Royale.
-- PR-007: Elimination and Game End.
-- PR-008: Minimal Playable UI / Debug Harness.
+Current implementation status:
+
+- PR-001: Core Game State Model is implemented.
+- PR-002: Setup and Economy Flow is not implemented.
+- PR-003: Action Card Deck and Spend-Phase Card Acquisition is not implemented.
+- PR-004: Action Phase Choice and Non-Raid Action Cards is not implemented.
+- PR-005: Raid Base is not implemented.
+- PR-006: Battle Royale is not implemented.
+- PR-007: Elimination and Game End is not implemented.
+- PR-008: Minimal Playable UI / Debug Harness is not implemented.
+
+PR-001 implementation summary:
+
+- Domain model lives under `Assets/Scripts/Domain/ShapesOfWar/`.
+- EditMode tests live under `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Implemented `Game`, `Player`, `Base`, `PlayerPublicState`, `BaseType`, `UnitShape`, `ResourceType`, `ActionCardType`, `ActionCardDeck`, `ActionCardHand`, and `EnumCountSet`.
+- Tracks player elimination state, public unit counts, public resource counts, private/internal action card identities, public action card count, standard 50-card action deck composition, and 2-4 player validation.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
 
 Known roadmap blockers:
 
-- Raid defense does not currently specify whether defending units used to stop a raid are discarded after resolution.
-- Action-card discard, deck exhaustion, and reshuffle behavior need clarification before implementing deck exhaustion behavior.
-- Game end when only one player remains appears in the roadmap, but should be finalized in `docs/RULES.md` before or with PR-007.
+- None of the earlier PR roadmap blockers remain for raid defender discard behavior, action-card discard/deck exhaustion behavior, or game-end wording.
 
 ## 7. Open Questions
 
@@ -285,4 +303,3 @@ Use these files for authoritative detail:
 - `docs/COMPONENTS.md`
 - `docs/OPEN_QUESTIONS.md`
 - `docs/PR_ROADMAP.md`
-

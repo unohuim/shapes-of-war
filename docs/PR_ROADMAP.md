@@ -8,6 +8,16 @@ Future implementation work must not add levels, strength values, dice, counter b
 
 Status: Implemented.
 
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Create the basic in-memory/domain representation for a game.
 
 Scope:
@@ -165,11 +175,11 @@ Suggested tests or validation checks:
 
 Documentation impact:
 
-- If a discard-pile reshuffle or deck exhaustion behavior is needed, document that before implementation instead of inventing it in code.
+- Action-card discard, deck exhaustion, and reshuffle behavior are finalized in `docs/RULES.md`.
 
 Implementation blockers:
 
-- The current docs say spent and discarded cards return to discard or circulation only at a conceptual level. Before handling deck exhaustion or reshuffling, clarify the exact action-card discard/circulation behavior.
+- None.
 
 ## PR-004: Action Phase Choice and Non-Raid Action Cards
 
@@ -239,6 +249,7 @@ Scope:
 - Resource Theft and Unit Kill cannot be defended with units.
 - If the raid succeeds, target base loses 1 point.
 - Raiding unit is discarded after resolution.
+- Defending units committed to stop the raid are discarded after resolution.
 
 Out of scope:
 
@@ -265,11 +276,11 @@ Suggested tests or validation checks:
 
 Documentation impact:
 
-- Clarify defending-unit discard behavior before implementation if it is intended to matter.
+- No blocker remains for defending-unit discard behavior.
 
 Implementation blockers:
 
-- Current docs do not specify whether defending units used to stop a raid are discarded after resolution. This must be clarified before implementing defensive unit loss.
+- None.
 
 ## PR-006: Battle Royale
 
@@ -366,11 +377,11 @@ Suggested tests or validation checks:
 
 Documentation impact:
 
-- Add or update documentation if implementation needs more precise game-end wording.
+- Game-end wording is finalized in `docs/RULES.md`.
 
 Implementation blockers:
 
-- The roadmap treats "game ends when only one player remains" as a prototype implementation requirement. If the rules docs should state that explicitly, update `docs/RULES.md` before or with this PR.
+- None.
 
 ## PR-008: Minimal Playable UI / Debug Harness
 

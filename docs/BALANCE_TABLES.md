@@ -97,3 +97,15 @@ These tables collect the current numeric foundation. They are not a full balance
 | Resource supply | Effectively unlimited |
 | Spent resources | Return to circulation |
 | Discarded or sacrificed units | Return to circulation |
+| Used action cards | Move to action card discard pile after resolution |
+| Empty action card deck | Shuffle discard pile into a new deck when a draw is needed |
+| Empty deck and empty discard pile | No card is drawn |
+| Raiding unit | Discarded after Raid Base resolution whether raid succeeds or fails |
+| Defending raid units | Discarded after Raid Base resolution whether raid succeeds or fails |
+
+## Game End
+
+| Condition | Result |
+| --- | --- |
+| Player base reaches 0 points | That player is eliminated |
+| Only one player remains | Game ends; remaining player wins |

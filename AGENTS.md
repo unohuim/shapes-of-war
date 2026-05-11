@@ -63,4 +63,5 @@ Treat project direction documents in this order:
 - Clearly separate finalized rules from open questions.
 - Do not silently resolve open questions.
 - If a rule is ambiguous, document it in `docs/OPEN_QUESTIONS.md`.
+- After completing an implementation PR, update `docs/PR_ROADMAP.md` and `LLM_BOOTSTRAP.md` with the current implementation status.
 - At the end of each task, summarize files created or updated and assumptions made.

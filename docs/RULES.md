@@ -156,6 +156,10 @@ Raid Base, Resource Theft, and Unit Kill may only be played during the active pl
 
 Counter can respond to Raid Base, Resource Theft, Unit Kill, or another Counter. Counter chains may continue until players stop responding or run out of Counter cards.
 
+Used action cards go to an action card discard pile after resolution. Counter cards used in Counter chains also go to the discard pile after the chain resolves.
+
+When the action card deck is empty and a player needs to draw, shuffle the discard pile to create a new action card deck. If both the deck and discard pile are empty, no card is drawn.
+
 ## Action Card Defense
 
 - Resource Theft can only be stopped by Counter.
@@ -174,6 +178,8 @@ Counter can respond to Raid Base, Resource Theft, Unit Kill, or another Counter.
 4. If not Countered, the target player may defend with enough units to beat the raiding unit.
 5. If the raid is not stopped or successfully defended, the target base loses 1 point.
 6. The raiding unit is discarded after resolution.
+
+When a player defends against Raid Base using units, all defending units committed to stop the raid are discarded after resolution. The raiding unit is also discarded after resolution. This applies whether the raid succeeds or fails.
 
 ## Battle Royale
 
@@ -222,3 +228,5 @@ On elimination:
 - The eliminated player's resources are discarded.
 - The eliminated player's action cards are discarded.
 - The player who eliminated them draws 1 action card.
+
+The game ends when only one player remains. The remaining player is the winner.

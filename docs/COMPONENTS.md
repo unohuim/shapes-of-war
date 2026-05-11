@@ -33,6 +33,8 @@ The only current action cards are:
 - Unit Kill
 - Counter
 
+Used action cards go to an action card discard pile after resolution. If the action card deck is empty when a player needs to draw, shuffle the discard pile into a new deck. If both the deck and discard pile are empty, no card is drawn.
+
 ## Action Deck Composition
 
 | Card | Count |
