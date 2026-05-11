@@ -530,9 +530,483 @@ namespace ShapesOfWar.Domain.Tests
             Assert.That(game.ActionDeck.Count, Is.EqualTo(50));
         }
 
+        [Test]
+        public void ActivePlayerCanPassActionPhase()
+        {
+            Game game = CreateSetupGame();
+
+            bool passed = game.TryPassActionPhase(0);
+
+            Assert.That(passed, Is.True);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.Pass));
+        }
+
+        [Test]
+        public void ActivePlayerCanPlayExactlyOneNonRaidActionCard()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Wood] = 1
+                        })));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Wood);
+            bool passed = game.TryPassActionPhase(0);
+            bool startedBattleRoyale = game.TryStartBattleRoyaleActionPhase(0);
+
+            Assert.That(played, Is.True);
+            Assert.That(passed, Is.False);
+            Assert.That(startedBattleRoyale, Is.False);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.ActionCard));
+        }
+
+        [Test]
+        public void BattleRoyaleActionPhaseChoiceDoesNotResolveBattleRoyaleInPr004()
+        {
+            Game game = CreateSetupGame();
+
+            bool started = game.TryStartBattleRoyaleActionPhase(0);
+            bool playedActionCard = game.TryPlayResourceTheft(0, 1, ResourceType.Stone);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(started, Is.True);
+            Assert.That(playedActionCard, Is.False);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.BattleRoyale));
+            Assert.That(state.UnitCounts[UnitShape.Square], Is.EqualTo(3));
+        }
+
+        [Test]
+        public void RaidBaseIsNotResolvedInPr004()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2"));
+
+            bool played = game.TryPlayRaidBase(0, 1, UnitShape.Square);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.HasPendingAction, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ResourceTheftStealsExactlyOneChosenResource()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Stone] = 2
+                        })));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Stone);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[0].ToPublicState().ResourceCounts[ResourceType.Stone], Is.EqualTo(1));
+            Assert.That(game.Players[1].ToPublicState().ResourceCounts[ResourceType.Stone], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ResourceTheftNoOpsWhenTargetLacksChosenResource()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(1, "Player 2"));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Wood);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.HasPendingAction, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ResourceTheftCardLeavesHandAndGoesToDiscardAfterResolution()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Metal] = 1
+                        })));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Metal);
+            int handCountAfterPlay = game.Players[0].ToPublicState().ActionCardCount;
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(handCountAfterPlay, Is.EqualTo(0));
+            Assert.That(resolved, Is.True);
+            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(1));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.ResourceTheft), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ResourceTheftCannotBeDefendedWithUnits()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 3
+                        }),
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Wood] = 1
+                        })));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Wood);
+            bool defended = game.TryDefendPendingActionWithUnits(1, UnitShape.Square, 1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(defended, Is.False);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(3));
+            Assert.That(game.Players[1].ToPublicState().ResourceCounts[ResourceType.Wood], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void UnitKillDestroysExactlyOneChosenTargetUnit()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Circle] = 2
+                        })));
+
+            bool played = game.TryPlayUnitKill(0, 1, UnitShape.Circle);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Circle], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void UnitKillNoOpsWhenTargetLacksChosenUnit()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill })),
+                CreatePlayer(1, "Player 2"));
+
+            bool played = game.TryPlayUnitKill(0, 1, UnitShape.Triangle);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.HasPendingAction, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void UnitKillCardLeavesHandAndGoesToDiscardAfterResolution()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Triangle] = 1
+                        })));
+
+            bool played = game.TryPlayUnitKill(0, 1, UnitShape.Triangle);
+            int handCountAfterPlay = game.Players[0].ToPublicState().ActionCardCount;
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(handCountAfterPlay, Is.EqualTo(0));
+            Assert.That(resolved, Is.True);
+            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(1));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.UnitKill), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void UnitKillCannotBeDefendedWithUnits()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 2
+                        })));
+
+            bool played = game.TryPlayUnitKill(0, 1, UnitShape.Square);
+            bool defended = game.TryDefendPendingActionWithUnits(1, UnitShape.Square, 1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(defended, Is.False);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CounterCanStopResourceTheft()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Wood] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Wood);
+            bool countered = game.TryRespondWithCounter(1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(countered, Is.True);
+            Assert.That(resolved, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ResourceCounts[ResourceType.Wood], Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().ResourceCounts[ResourceType.Wood], Is.EqualTo(1));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.ResourceTheft), Is.EqualTo(1));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.Counter), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CounterCanStopUnitKill()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Circle] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            bool played = game.TryPlayUnitKill(0, 1, UnitShape.Circle);
+            bool countered = game.TryRespondWithCounter(1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(countered, Is.True);
+            Assert.That(resolved, Is.False);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Circle], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void CounterCannotBePlayedAsActiveActionPhaseCard()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })),
+                CreatePlayer(1, "Player 2"));
+
+            bool played = game.TryPlayCounterAsActionPhaseCard(0);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.ActionDeck.DiscardPileCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void CounterCanRespondToAnotherCounter()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft, ActionCardType.Counter })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Stone] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            bool played = game.TryPlayResourceTheft(0, 1, ResourceType.Stone);
+            bool firstCounter = game.TryRespondWithCounter(1);
+            bool secondCounter = game.TryRespondWithCounter(0);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(played, Is.True);
+            Assert.That(firstCounter, Is.True);
+            Assert.That(secondCounter, Is.True);
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[0].ToPublicState().ResourceCounts[ResourceType.Stone], Is.EqualTo(1));
+            Assert.That(game.Players[1].ToPublicState().ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.Counter), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void OddNumberOfCountersStopsOriginalAction()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Metal] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            game.TryPlayResourceTheft(0, 1, ResourceType.Metal);
+            game.TryRespondWithCounter(1);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(resolved, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().ResourceCounts[ResourceType.Metal], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void EvenNumberOfCountersAllowsOriginalAction()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill, ActionCardType.Counter })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            game.TryPlayUnitKill(0, 1, UnitShape.Square);
+            game.TryRespondWithCounter(1);
+            game.TryRespondWithCounter(0);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(0));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.Counter), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void PublicActionCardCountsUpdateAndIdentitiesRemainPrivateAfterActionAndCounters()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Wood] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter })));
+
+            game.TryPlayResourceTheft(0, 1, ResourceType.Wood);
+            game.TryRespondWithCounter(1);
+
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().ActionCardCount, Is.EqualTo(0));
+            Assert.That(HasPublicActionCardIdentityProperty(typeof(PlayerPublicState)), Is.False);
+        }
+
         private static Game CreateGame(int playerCount)
         {
             return new Game(Enumerable.Range(0, playerCount).Select(index => CreatePlayer(index, $"Player {index + 1}")));
+        }
+
+        private static Game CreateActionCardGame(Player playerOne, Player playerTwo)
+        {
+            return new Game(new[] { playerOne, playerTwo }, new ActionCardDeck(Array.Empty<ActionCardType>()));
         }
 
         private static Player CreatePlayer(

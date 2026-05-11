@@ -28,5 +28,12 @@ namespace ShapesOfWar.Domain
         UnitKill,
         Counter
     }
-}
 
+    public enum ActionPhaseChoice
+    {
+        None,
+        BattleRoyale,
+        ActionCard,
+        Pass
+    }
+}

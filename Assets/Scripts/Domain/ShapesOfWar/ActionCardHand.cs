@@ -22,5 +22,10 @@ namespace ShapesOfWar.Domain
         {
             _cards.Add(card);
         }
+
+        internal bool TryRemove(ActionCardType card)
+        {
+            return _cards.Remove(card);
+        }
     }
 }

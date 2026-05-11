@@ -14,6 +14,9 @@ namespace ShapesOfWar.Domain
         public const int StartingBasePoints = 3;
         public const int StartingSquareCount = 3;
 
+        private readonly Dictionary<int, ActionPhaseChoice> _actionPhaseChoices;
+        private PendingAction? _pendingAction;
+
         public Game(IEnumerable<Player> players, ActionCardDeck? actionDeck = null)
         {
             if (players == null)
@@ -26,6 +29,7 @@ namespace ShapesOfWar.Domain
 
             Players = new ReadOnlyCollection<Player>(playerList);
             ActionDeck = actionDeck ?? ActionCardDeck.CreateStandard();
+            _actionPhaseChoices = playerList.ToDictionary(player => player.Index, _ => ActionPhaseChoice.None);
         }
 
         public IReadOnlyList<Player> Players { get; }
@@ -147,6 +151,122 @@ namespace ShapesOfWar.Domain
             ActionDeck.DiscardUsedCard(actionCard);
         }
 
+        public ActionPhaseChoice GetActionPhaseChoice(int playerIndex)
+        {
+            GetPlayer(playerIndex);
+            return _actionPhaseChoices[playerIndex];
+        }
+
+        public bool HasPendingAction => _pendingAction != null;
+
+        public bool TryPassActionPhase(int playerIndex)
+        {
+            GetPlayer(playerIndex);
+            return TryChooseActionPhaseOption(playerIndex, ActionPhaseChoice.Pass);
+        }
+
+        public bool TryStartBattleRoyaleActionPhase(int playerIndex)
+        {
+            GetPlayer(playerIndex);
+            return TryChooseActionPhaseOption(playerIndex, ActionPhaseChoice.BattleRoyale);
+        }
+
+        public bool TryPlayResourceTheft(int playerIndex, int targetPlayerIndex, ResourceType resourceType)
+        {
+            Player player = GetPlayer(playerIndex);
+            Player target = GetTargetPlayer(playerIndex, targetPlayerIndex);
+
+            if (_pendingAction != null ||
+                target.ResourceCounts.Get(resourceType) < 1 ||
+                !CanChooseActionPhaseOption(playerIndex) ||
+                !player.ActionCards.TryRemove(ActionCardType.ResourceTheft))
+            {
+                return false;
+            }
+
+            _actionPhaseChoices[playerIndex] = ActionPhaseChoice.ActionCard;
+            _pendingAction = PendingAction.CreateResourceTheft(playerIndex, targetPlayerIndex, resourceType);
+            return true;
+        }
+
+        public bool TryPlayUnitKill(int playerIndex, int targetPlayerIndex, UnitShape unitShape)
+        {
+            Player player = GetPlayer(playerIndex);
+            Player target = GetTargetPlayer(playerIndex, targetPlayerIndex);
+
+            if (_pendingAction != null ||
+                target.UnitCounts.Get(unitShape) < 1 ||
+                !CanChooseActionPhaseOption(playerIndex) ||
+                !player.ActionCards.TryRemove(ActionCardType.UnitKill))
+            {
+                return false;
+            }
+
+            _actionPhaseChoices[playerIndex] = ActionPhaseChoice.ActionCard;
+            _pendingAction = PendingAction.CreateUnitKill(playerIndex, targetPlayerIndex, unitShape);
+            return true;
+        }
+
+        public bool TryPlayRaidBase(int playerIndex, int targetPlayerIndex, UnitShape raidingUnitShape)
+        {
+            GetPlayer(playerIndex);
+            GetTargetPlayer(playerIndex, targetPlayerIndex);
+            _ = raidingUnitShape;
+            return false;
+        }
+
+        public bool TryPlayCounterAsActionPhaseCard(int playerIndex)
+        {
+            GetPlayer(playerIndex);
+            return false;
+        }
+
+        public bool TryRespondWithCounter(int playerIndex)
+        {
+            Player player = GetPlayer(playerIndex);
+
+            if (_pendingAction == null || !player.ActionCards.TryRemove(ActionCardType.Counter))
+            {
+                return false;
+            }
+
+            _pendingAction.AddCounter();
+            return true;
+        }
+
+        public bool TryDefendPendingActionWithUnits(int defenderPlayerIndex, UnitShape unitShape, int count)
+        {
+            GetPlayer(defenderPlayerIndex);
+            _ = unitShape;
+            _ = count;
+            return false;
+        }
+
+        public bool ResolvePendingAction()
+        {
+            if (_pendingAction == null)
+            {
+                return false;
+            }
+
+            PendingAction action = _pendingAction;
+            bool actionResolved = false;
+
+            if (action.CounterCount % 2 == 0)
+            {
+                actionResolved = ResolveUncounteredAction(action);
+            }
+
+            DiscardUsedActionCard(action.ActionCard);
+            for (int counterIndex = 0; counterIndex < action.CounterCount; counterIndex++)
+            {
+                DiscardUsedActionCard(ActionCardType.Counter);
+            }
+
+            _pendingAction = null;
+            return actionResolved;
+        }
+
         private static void ValidatePlayers(IReadOnlyCollection<Player> players)
         {
             if (players.Count < MinimumPlayerCount || players.Count > MaximumPlayerCount)
@@ -193,6 +313,54 @@ namespace ShapesOfWar.Domain
             return player;
         }
 
+        private Player GetTargetPlayer(int playerIndex, int targetPlayerIndex)
+        {
+            if (playerIndex == targetPlayerIndex)
+            {
+                throw new ArgumentException("Target player must be another player.", nameof(targetPlayerIndex));
+            }
+
+            return GetPlayer(targetPlayerIndex);
+        }
+
+        private bool TryChooseActionPhaseOption(int playerIndex, ActionPhaseChoice choice)
+        {
+            if (!CanChooseActionPhaseOption(playerIndex))
+            {
+                return false;
+            }
+
+            _actionPhaseChoices[playerIndex] = choice;
+            return true;
+        }
+
+        private bool CanChooseActionPhaseOption(int playerIndex)
+        {
+            return _actionPhaseChoices[playerIndex] == ActionPhaseChoice.None && _pendingAction == null;
+        }
+
+        private bool ResolveUncounteredAction(PendingAction action)
+        {
+            Player activePlayer = GetPlayer(action.ActivePlayerIndex);
+            Player targetPlayer = GetPlayer(action.TargetPlayerIndex);
+
+            if (action.ActionCard == ActionCardType.ResourceTheft &&
+                action.ResourceType.HasValue &&
+                targetPlayer.TrySpendResource(action.ResourceType.Value, 1))
+            {
+                activePlayer.AddResource(action.ResourceType.Value, 1);
+                return true;
+            }
+
+            if (action.ActionCard == ActionCardType.UnitKill &&
+                action.UnitShape.HasValue)
+            {
+                return targetPlayer.TrySpendUnit(action.UnitShape.Value, 1);
+            }
+
+            return false;
+        }
+
         private static ResourceType GetUnitCostResource(UnitShape unitShape)
         {
             switch (unitShape)
@@ -205,6 +373,60 @@ namespace ShapesOfWar.Domain
                     return ResourceType.Wood;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(unitShape), unitShape, "Unknown unit shape.");
+            }
+        }
+
+        private sealed class PendingAction
+        {
+            private PendingAction(
+                ActionCardType actionCard,
+                int activePlayerIndex,
+                int targetPlayerIndex,
+                ResourceType? resourceType,
+                UnitShape? unitShape)
+            {
+                ActionCard = actionCard;
+                ActivePlayerIndex = activePlayerIndex;
+                TargetPlayerIndex = targetPlayerIndex;
+                ResourceType = resourceType;
+                UnitShape = unitShape;
+            }
+
+            public ActionCardType ActionCard { get; }
+
+            public int ActivePlayerIndex { get; }
+
+            public int TargetPlayerIndex { get; }
+
+            public ResourceType? ResourceType { get; }
+
+            public UnitShape? UnitShape { get; }
+
+            public int CounterCount { get; private set; }
+
+            public static PendingAction CreateResourceTheft(int activePlayerIndex, int targetPlayerIndex, ResourceType resourceType)
+            {
+                return new PendingAction(
+                    ActionCardType.ResourceTheft,
+                    activePlayerIndex,
+                    targetPlayerIndex,
+                    resourceType,
+                    null);
+            }
+
+            public static PendingAction CreateUnitKill(int activePlayerIndex, int targetPlayerIndex, UnitShape unitShape)
+            {
+                return new PendingAction(
+                    ActionCardType.UnitKill,
+                    activePlayerIndex,
+                    targetPlayerIndex,
+                    null,
+                    unitShape);
+            }
+
+            public void AddCounter()
+            {
+                CounterCount++;
             }
         }
     }

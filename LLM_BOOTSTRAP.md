@@ -267,7 +267,7 @@ Current implementation status:
 - PR-001: Core Game State Model is implemented.
 - PR-002: Setup and Economy Flow is implemented.
 - PR-003: Action Card Deck and Spend-Phase Card Acquisition is implemented.
-- PR-004: Action Phase Choice and Non-Raid Action Cards is not implemented.
+- PR-004: Action Phase Choice and Non-Raid Action Cards is implemented.
 - PR-005: Raid Base is not implemented.
 - PR-006: Battle Royale is not implemented.
 - PR-007: Elimination and Game End is not implemented.
@@ -305,6 +305,20 @@ PR-003 implementation summary:
 - Preserved public action card count with private/internal action card identities.
 - Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-004 implementation summary:
+
+- Implemented action phase choice tracking for pass, action card, and Battle Royale choice.
+- Implemented Resource Theft and Unit Kill as pending non-raid action cards.
+- Implemented Counter responses and Counter chains; odd Counter counts stop the original action and even Counter counts allow it to resolve.
+- Used Resource Theft, Unit Kill, and Counter cards leave hands and move to the action card discard pile after resolution.
+- Raid Base remains in the deck and enum but is not resolved until PR-005.
+- Battle Royale can be represented as an action phase choice but is not resolved until PR-006.
+- PR-004 tracks one action phase option per action phase, but full turn advancement and automatic action phase choice reset are deferred to later turn-flow work.
+- Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-004 domain validation passed for Resource Theft, Unit Kill, and odd/even Counter chains.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
 
 Known roadmap blockers:

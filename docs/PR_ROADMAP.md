@@ -209,6 +209,19 @@ Implementation blockers:
 
 ## PR-004: Action Phase Choice and Non-Raid Action Cards
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-004 domain validation passed for Resource Theft, Unit Kill, and odd/even Counter chains.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Implement exclusive action phase choice and simple targeted actions.
 
 Scope:
@@ -232,6 +245,7 @@ Out of scope:
 
 - Raid Base effect and unit defense.
 - Battle Royale resolution.
+- Full turn advancement and automatic action phase choice reset.
 - Elimination and game end.
 - Mixed-shape combat.
 - Additional action cards.
@@ -259,7 +273,8 @@ Documentation impact:
 
 Implementation blockers:
 
-- None, unless shared Counter-chain infrastructure requires Raid Base hooks. If so, implement only the shared response infrastructure and leave Raid Base behavior for PR-005.
+- None. Raid Base remains unimplemented until PR-005, and Battle Royale remains represented only as an action phase choice until PR-006.
+- Action phase choice reset is deferred future turn-flow work, not a PR-004 bug.
 
 ## PR-005: Raid Base
 

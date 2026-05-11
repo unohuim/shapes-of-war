@@ -122,6 +122,8 @@ During the action phase, the active player may choose one:
 
 A player may not both start Battle Royale and play an action card on the same turn.
 
+Current implementation tracks this one-choice-per-action-phase rule, but full turn advancement and automatic action phase choice reset are deferred to later turn-flow work.
+
 ## Action Cards
 
 There are only four current action cards:
@@ -155,6 +157,8 @@ Each player's total action card count is public. Action card identities are priv
 Raid Base, Resource Theft, and Unit Kill may only be played during the active player's action phase. Counter may only be played as a response.
 
 Counter can respond to Raid Base, Resource Theft, Unit Kill, or another Counter. Counter chains may continue until players stop responding or run out of Counter cards.
+
+Each Counter toggles whether the original action succeeds. An odd number of Counters stops the original action. An even number of Counters allows the original action to resolve.
 
 Used action cards go to an action card discard pile after resolution. Counter cards used in Counter chains also go to the discard pile after the chain resolves.
 
