@@ -37,6 +37,10 @@ namespace ShapesOfWar.Domain
 
         public ActionCardDeck ActionDeck { get; }
 
+        public bool IsGameOver => ActivePlayers.Count() == 1;
+
+        public int? WinningPlayerIndex => IsGameOver ? ActivePlayers.Single().Index : (int?)null;
+
         public static Game CreateNew(IEnumerable<string> playerNames)
         {
             if (playerNames == null)
@@ -63,7 +67,7 @@ namespace ShapesOfWar.Domain
 
         public void CollectResources(int playerIndex)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
             player.AddResource(ResourceType.Wood, player.UnitCounts.Get(UnitShape.Triangle));
             player.AddResource(ResourceType.Stone, player.UnitCounts.Get(UnitShape.Square));
             player.AddResource(ResourceType.Metal, player.UnitCounts.Get(UnitShape.Circle));
@@ -71,7 +75,7 @@ namespace ShapesOfWar.Domain
 
         public bool TryBuyUnit(int playerIndex, UnitShape unitShape)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
             ResourceType costResource = GetUnitCostResource(unitShape);
 
             if (!player.TrySpendResource(costResource, 1))
@@ -85,7 +89,7 @@ namespace ShapesOfWar.Domain
 
         public bool TryUpgradeBase(int playerIndex, BaseType targetBaseType)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
 
             if (player.Base.Type == BaseType.Wood && targetBaseType == BaseType.Stone)
             {
@@ -119,7 +123,7 @@ namespace ShapesOfWar.Domain
 
         public bool TrySacrificeUnitToDrawActionCard(int playerIndex, UnitShape unitShape)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
 
             if (player.UnitCounts.Get(unitShape) < 1)
             {
@@ -136,7 +140,16 @@ namespace ShapesOfWar.Domain
 
         public bool TryDrawActionCard(int playerIndex)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
+            return TryDrawActionCardForPlayer(player);
+        }
+
+        private bool TryDrawActionCardForPlayer(Player player)
+        {
+            if (player.IsEliminated)
+            {
+                return false;
+            }
 
             if (!ActionDeck.TryDraw(out ActionCardType actionCard))
             {
@@ -170,19 +183,19 @@ namespace ShapesOfWar.Domain
 
         public bool TryPassActionPhase(int playerIndex)
         {
-            GetPlayer(playerIndex);
+            GetActivePlayer(playerIndex);
             return TryChooseActionPhaseOption(playerIndex, ActionPhaseChoice.Pass);
         }
 
         public bool TryStartBattleRoyaleActionPhase(int playerIndex)
         {
-            GetPlayer(playerIndex);
+            GetActivePlayer(playerIndex);
             return false;
         }
 
         public bool TryStartBattleRoyale(int playerIndex, UnitShape unitShape)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
 
             if (!CanChooseActionPhaseOption(playerIndex) ||
                 player.UnitCounts.Get(unitShape) < 1 ||
@@ -192,13 +205,13 @@ namespace ShapesOfWar.Domain
             }
 
             _actionPhaseChoices[playerIndex] = ActionPhaseChoice.BattleRoyale;
-            _pendingBattleRoyale = BattleRoyaleState.Start(Players.Select(player => player.Index), playerIndex, unitShape);
+            _pendingBattleRoyale = BattleRoyaleState.Start(ActivePlayers.Select(player => player.Index), playerIndex, unitShape);
             return true;
         }
 
         public bool TryPlayBattleRoyaleUnits(int playerIndex, UnitShape unitShape, int count)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
 
             if (_pendingBattleRoyale == null ||
                 !_pendingBattleRoyale.CanPlayerAct(playerIndex) ||
@@ -236,7 +249,7 @@ namespace ShapesOfWar.Domain
 
         public bool TryPassBattleRoyale(int playerIndex)
         {
-            GetPlayer(playerIndex);
+            GetActivePlayer(playerIndex);
 
             if (_pendingBattleRoyale == null || !_pendingBattleRoyale.CanPlayerAct(playerIndex))
             {
@@ -250,8 +263,8 @@ namespace ShapesOfWar.Domain
 
         public bool TryPlayResourceTheft(int playerIndex, int targetPlayerIndex, ResourceType resourceType)
         {
-            Player player = GetPlayer(playerIndex);
-            Player target = GetTargetPlayer(playerIndex, targetPlayerIndex);
+            Player player = GetActivePlayer(playerIndex);
+            Player target = GetTargetActivePlayer(playerIndex, targetPlayerIndex);
 
             if (_pendingAction != null ||
                 target.ResourceCounts.Get(resourceType) < 1 ||
@@ -268,8 +281,8 @@ namespace ShapesOfWar.Domain
 
         public bool TryPlayUnitKill(int playerIndex, int targetPlayerIndex, UnitShape unitShape)
         {
-            Player player = GetPlayer(playerIndex);
-            Player target = GetTargetPlayer(playerIndex, targetPlayerIndex);
+            Player player = GetActivePlayer(playerIndex);
+            Player target = GetTargetActivePlayer(playerIndex, targetPlayerIndex);
 
             if (_pendingAction != null ||
                 target.UnitCounts.Get(unitShape) < 1 ||
@@ -286,8 +299,8 @@ namespace ShapesOfWar.Domain
 
         public bool TryPlayRaidBase(int playerIndex, int targetPlayerIndex, UnitShape raidingUnitShape)
         {
-            Player player = GetPlayer(playerIndex);
-            GetTargetPlayer(playerIndex, targetPlayerIndex);
+            Player player = GetActivePlayer(playerIndex);
+            GetTargetActivePlayer(playerIndex, targetPlayerIndex);
 
             if (_pendingAction != null ||
                 player.UnitCounts.Get(raidingUnitShape) < 1 ||
@@ -304,13 +317,13 @@ namespace ShapesOfWar.Domain
 
         public bool TryPlayCounterAsActionPhaseCard(int playerIndex)
         {
-            GetPlayer(playerIndex);
+            GetActivePlayer(playerIndex);
             return false;
         }
 
         public bool TryRespondWithCounter(int playerIndex)
         {
-            Player player = GetPlayer(playerIndex);
+            Player player = GetActivePlayer(playerIndex);
 
             if (_pendingAction == null || !player.ActionCards.TryRemove(ActionCardType.Counter))
             {
@@ -323,7 +336,7 @@ namespace ShapesOfWar.Domain
 
         public bool TryDefendPendingActionWithUnits(int defenderPlayerIndex, UnitShape unitShape, int count)
         {
-            Player defender = GetPlayer(defenderPlayerIndex);
+            Player defender = GetActivePlayer(defenderPlayerIndex);
 
             if (_pendingAction == null ||
                 _pendingAction.ActionCard != ActionCardType.RaidBase ||
@@ -417,6 +430,19 @@ namespace ShapesOfWar.Domain
             return player;
         }
 
+        private IEnumerable<Player> ActivePlayers => Players.Where(player => !player.IsEliminated);
+
+        private Player GetActivePlayer(int playerIndex)
+        {
+            Player player = GetPlayer(playerIndex);
+            if (player.IsEliminated)
+            {
+                throw new InvalidOperationException("Eliminated players cannot act.");
+            }
+
+            return player;
+        }
+
         private Player GetTargetPlayer(int playerIndex, int targetPlayerIndex)
         {
             if (playerIndex == targetPlayerIndex)
@@ -425,6 +451,17 @@ namespace ShapesOfWar.Domain
             }
 
             return GetPlayer(targetPlayerIndex);
+        }
+
+        private Player GetTargetActivePlayer(int playerIndex, int targetPlayerIndex)
+        {
+            Player targetPlayer = GetTargetPlayer(playerIndex, targetPlayerIndex);
+            if (targetPlayer.IsEliminated)
+            {
+                throw new InvalidOperationException("Eliminated players cannot be targeted.");
+            }
+
+            return targetPlayer;
         }
 
         private bool TryChooseActionPhaseOption(int playerIndex, ActionPhaseChoice choice)
@@ -503,7 +540,28 @@ namespace ShapesOfWar.Domain
             }
 
             targetPlayer.Base.LosePoints(1);
+            if (targetPlayer.Base.Points == 0)
+            {
+                EliminatePlayer(targetPlayer, activePlayer);
+            }
+
             return true;
+        }
+
+        private void EliminatePlayer(Player eliminatedPlayer, Player eliminatingPlayer)
+        {
+            if (eliminatedPlayer.IsEliminated)
+            {
+                return;
+            }
+
+            IReadOnlyList<ActionCardType> discardedCards = eliminatedPlayer.EliminateAndDiscardHoldings();
+            foreach (ActionCardType actionCard in discardedCards)
+            {
+                DiscardUsedActionCard(actionCard);
+            }
+
+            TryDrawActionCardForPlayer(eliminatingPlayer);
         }
 
         private static ResourceType GetUnitCostResource(UnitShape unitShape)

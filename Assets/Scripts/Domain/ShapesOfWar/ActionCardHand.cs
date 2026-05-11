@@ -27,5 +27,12 @@ namespace ShapesOfWar.Domain
         {
             return _cards.Remove(card);
         }
+
+        internal IReadOnlyList<ActionCardType> DiscardAll()
+        {
+            List<ActionCardType> discardedCards = _cards.ToList();
+            _cards.Clear();
+            return discardedCards;
+        }
     }
 }

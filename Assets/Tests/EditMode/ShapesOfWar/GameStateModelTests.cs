@@ -845,7 +845,7 @@ namespace ShapesOfWar.Domain.Tests
         }
 
         [Test]
-        public void RaidBaseCanReduceBaseToZeroWithoutPr007EliminationResolution()
+        public void RaidBaseResolutionEliminatesTargetWhenBaseReachesZero()
         {
             Game game = CreateActionCardGame(
                 CreatePlayer(
@@ -864,7 +864,7 @@ namespace ShapesOfWar.Domain.Tests
 
             Assert.That(resolved, Is.True);
             Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(0));
-            Assert.That(game.Players[1].ToPublicState().IsEliminated, Is.False);
+            Assert.That(game.Players[1].ToPublicState().IsEliminated, Is.True);
         }
 
         [TestCase(UnitShape.Triangle, UnitShape.Square, 2)]
@@ -1556,6 +1556,177 @@ namespace ShapesOfWar.Domain.Tests
             Assert.That(game.BattleRoyaleCurrentWinningCount, Is.Null);
         }
 
+        [Test]
+        public void RaidBaseDamageThatReducesBaseToZeroEliminatesTarget()
+        {
+            Game game = CreateEliminationRaidGame();
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            bool resolved = game.ResolvePendingAction();
+
+            Assert.That(resolved, Is.True);
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().IsEliminated, Is.True);
+        }
+
+        [Test]
+        public void RaidBaseDamageAboveZeroDoesNotEliminateTarget()
+        {
+            Game game = CreateRaidGame(UnitShape.Square);
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.That(game.Players[1].ToPublicState().BasePoints, Is.EqualTo(2));
+            Assert.That(game.Players[1].ToPublicState().IsEliminated, Is.False);
+        }
+
+        [Test]
+        public void EliminatedPlayerHoldingsAreDiscarded()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Square, 1),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    playerBase: new Base(BaseType.Wood, 1),
+                    unitCounts: Units(UnitShape.Circle, 2),
+                    resourceCounts: Resources(ResourceType.Metal, 3),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter, ActionCardType.UnitKill })));
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            PlayerPublicState eliminated = game.Players[1].ToPublicState();
+            Assert.That(eliminated.UnitCounts[UnitShape.Circle], Is.EqualTo(0));
+            Assert.That(eliminated.ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
+            Assert.That(eliminated.ActionCardCount, Is.EqualTo(0));
+            // Eliminator reward draws may reshuffle eliminated cards out of the discard pile.
+            Assert.That(game.Players[1].ActionCards.Cards, Is.Empty);
+        }
+
+        [Test]
+        public void EliminatorDrawsOneActionCardAfterEliminationCleanup()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Square, 1),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    playerBase: new Base(BaseType.Wood, 1),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter }))
+            });
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.ActionDeck.CountOfDiscard(ActionCardType.Counter), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void EliminatorRewardDrawNoOpsWhenDeckAndDiscardPileAreEmpty()
+        {
+            Game game = CreateEliminationRaidGame();
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void EliminatedPlayerCannotTakeLaterActions()
+        {
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Square, 1),
+                    resourceCounts: Resources(ResourceType.Stone, 2),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    playerBase: new Base(BaseType.Wood, 1),
+                    unitCounts: Units(UnitShape.Square, 1),
+                    resourceCounts: Resources(ResourceType.Stone, 2),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })));
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.Throws<InvalidOperationException>(() => game.TryStartBattleRoyale(1, UnitShape.Square));
+            Assert.Throws<InvalidOperationException>(() => game.TryPlayResourceTheft(1, 0, ResourceType.Stone));
+            Assert.Throws<InvalidOperationException>(() => game.TryBuyUnit(1, UnitShape.Square));
+            Assert.Throws<InvalidOperationException>(() => game.CollectResources(1));
+            Assert.Throws<InvalidOperationException>(() => game.TryUpgradeBase(1, BaseType.Stone));
+            Assert.Throws<InvalidOperationException>(() => game.TrySacrificeUnitToDrawActionCard(1, UnitShape.Square));
+        }
+
+        [Test]
+        public void GameDoesNotEndWhileMoreThanOnePlayerRemainsActive()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Square, 1),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2", playerBase: new Base(BaseType.Wood, 1)),
+                CreatePlayer(2, "Player 3")
+            });
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.That(game.IsGameOver, Is.False);
+            Assert.That(game.WinningPlayerIndex, Is.Null);
+        }
+
+        [Test]
+        public void GameEndsWhenOnlyOnePlayerRemainsAndRecordsWinner()
+        {
+            Game game = CreateEliminationRaidGame();
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.That(game.IsGameOver, Is.True);
+            Assert.That(game.WinningPlayerIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void EliminatingDownToOnePlayerEndsGame()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Square, 2),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2", playerBase: new Base(BaseType.Wood, 1)),
+                CreatePlayer(2, "Player 3", playerBase: new Base(BaseType.Wood, 1), isEliminated: true)
+            });
+
+            game.TryPlayRaidBase(0, 1, UnitShape.Square);
+            game.ResolvePendingAction();
+
+            Assert.That(game.IsGameOver, Is.True);
+            Assert.That(game.WinningPlayerIndex, Is.EqualTo(0));
+        }
+
         private static Game CreateGame(int playerCount)
         {
             return new Game(Enumerable.Range(0, playerCount).Select(index => CreatePlayer(index, $"Player {index + 1}")));
@@ -1569,6 +1740,17 @@ namespace ShapesOfWar.Domain.Tests
         private static Game CreateBattleRoyaleGame(params Player[] players)
         {
             return new Game(players);
+        }
+
+        private static Game CreateEliminationRaidGame()
+        {
+            return CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Square, 1),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.RaidBase })),
+                CreatePlayer(1, "Player 2", playerBase: new Base(BaseType.Wood, 1)));
         }
 
         private static Game CreateRaidGame(UnitShape raidingUnitShape)
@@ -1620,13 +1802,23 @@ namespace ShapesOfWar.Domain.Tests
                 });
         }
 
+        private static EnumCountSet<ResourceType> Resources(ResourceType resourceType, int count)
+        {
+            return new EnumCountSet<ResourceType>(
+                new Dictionary<ResourceType, int>
+                {
+                    [resourceType] = count
+                });
+        }
+
         private static Player CreatePlayer(
             int index,
             string name,
             Base? playerBase = null,
             EnumCountSet<UnitShape>? unitCounts = null,
             EnumCountSet<ResourceType>? resourceCounts = null,
-            ActionCardHand? actionCards = null)
+            ActionCardHand? actionCards = null,
+            bool isEliminated = false)
         {
             return new Player(
                 index,
@@ -1634,7 +1826,8 @@ namespace ShapesOfWar.Domain.Tests
                 playerBase ?? new Base(BaseType.Wood, 3),
                 unitCounts,
                 resourceCounts,
-                actionCards);
+                actionCards,
+                isEliminated);
         }
 
         private static Game CreateSetupGame()

@@ -408,6 +408,19 @@ Implementation blockers:
 
 ## PR-007: Elimination and Game End
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-007 domain validation passed for Raid Base elimination, cleanup, reward draw, eliminated-player action blocking, game over, and winner recording.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Implement player elimination and game-end handling.
 
 Scope:

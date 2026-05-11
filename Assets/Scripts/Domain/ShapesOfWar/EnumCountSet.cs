@@ -78,5 +78,13 @@ namespace ShapesOfWar.Domain
             Set(key, Get(key) - value);
             return true;
         }
+
+        internal void Clear()
+        {
+            foreach (TEnum key in _counts.Keys.ToList())
+            {
+                _counts[key] = 0;
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 
 namespace ShapesOfWar.Domain
 {
@@ -46,7 +47,7 @@ namespace ShapesOfWar.Domain
 
         public int ActionCardCount => ActionCards.Count;
 
-        public bool IsEliminated { get; }
+        public bool IsEliminated { get; private set; }
 
         internal ActionCardHand ActionCards { get; }
 
@@ -73,6 +74,14 @@ namespace ShapesOfWar.Domain
         internal void AddActionCard(ActionCardType actionCard)
         {
             ActionCards.Add(actionCard);
+        }
+
+        internal IReadOnlyList<ActionCardType> EliminateAndDiscardHoldings()
+        {
+            IsEliminated = true;
+            UnitCounts.Clear();
+            ResourceCounts.Clear();
+            return ActionCards.DiscardAll();
         }
 
         public PlayerPublicState ToPublicState()

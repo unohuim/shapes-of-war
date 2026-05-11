@@ -270,7 +270,7 @@ Current implementation status:
 - PR-004: Action Phase Choice and Non-Raid Action Cards is implemented.
 - PR-005: Raid Base is implemented.
 - PR-006: Battle Royale is implemented.
-- PR-007: Elimination and Game End is not implemented.
+- PR-007: Elimination and Game End is implemented.
 - PR-008: Minimal Playable UI / Debug Harness is not implemented.
 
 PR-001 implementation summary:
@@ -347,6 +347,19 @@ PR-006 implementation summary:
 - Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
 - Focused local PR-006 domain validation passed for starter wins, challenger wins, same-shape rejection, winner draw, winner unit retention, and losing committed unit discard.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-007 implementation summary:
+
+- Implemented immediate elimination when Raid Base damage reduces a target base to 0.
+- Eliminated players are marked eliminated and their units, resources, and action cards are discarded.
+- Eliminated action cards move to the action card discard pile before the eliminator reward draw.
+- The eliminating player draws 1 action card after elimination cleanup; if no card can be drawn, the reward safely no-ops.
+- Eliminated players are blocked from later domain actions such as collecting resources, buying units, upgrading, sacrificing units, playing action cards, starting Battle Royale, or responding.
+- Implemented game-over state and winner index when only one player remains active.
+- Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-007 domain validation passed for Raid Base elimination, cleanup, reward draw, eliminated-player action blocking, game over, and winner recording.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
 
 Known roadmap blockers:
