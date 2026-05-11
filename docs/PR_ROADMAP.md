@@ -338,6 +338,19 @@ Implementation blockers:
 
 ## PR-006: Battle Royale
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-006 domain validation passed for starter wins, challenger wins, same-shape rejection, winner draw, winner unit retention, and losing committed unit discard.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Implement escalating Battle Royale.
 
 Scope:

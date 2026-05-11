@@ -16,6 +16,7 @@ namespace ShapesOfWar.Domain
 
         private readonly Dictionary<int, ActionPhaseChoice> _actionPhaseChoices;
         private PendingAction? _pendingAction;
+        private BattleRoyaleState? _pendingBattleRoyale;
 
         public Game(IEnumerable<Player> players, ActionCardDeck? actionDeck = null)
         {
@@ -159,6 +160,14 @@ namespace ShapesOfWar.Domain
 
         public bool HasPendingAction => _pendingAction != null;
 
+        public bool HasPendingBattleRoyale => _pendingBattleRoyale != null;
+
+        public int? BattleRoyaleCurrentWinningPlayerIndex => _pendingBattleRoyale?.CurrentWinningPlayerIndex;
+
+        public UnitShape? BattleRoyaleCurrentWinningShape => _pendingBattleRoyale?.CurrentWinningShape;
+
+        public int? BattleRoyaleCurrentWinningCount => _pendingBattleRoyale?.CurrentWinningCount;
+
         public bool TryPassActionPhase(int playerIndex)
         {
             GetPlayer(playerIndex);
@@ -168,7 +177,75 @@ namespace ShapesOfWar.Domain
         public bool TryStartBattleRoyaleActionPhase(int playerIndex)
         {
             GetPlayer(playerIndex);
-            return TryChooseActionPhaseOption(playerIndex, ActionPhaseChoice.BattleRoyale);
+            return false;
+        }
+
+        public bool TryStartBattleRoyale(int playerIndex, UnitShape unitShape)
+        {
+            Player player = GetPlayer(playerIndex);
+
+            if (!CanChooseActionPhaseOption(playerIndex) ||
+                player.UnitCounts.Get(unitShape) < 1 ||
+                !player.TrySpendUnit(unitShape, 1))
+            {
+                return false;
+            }
+
+            _actionPhaseChoices[playerIndex] = ActionPhaseChoice.BattleRoyale;
+            _pendingBattleRoyale = BattleRoyaleState.Start(Players.Select(player => player.Index), playerIndex, unitShape);
+            return true;
+        }
+
+        public bool TryPlayBattleRoyaleUnits(int playerIndex, UnitShape unitShape, int count)
+        {
+            Player player = GetPlayer(playerIndex);
+
+            if (_pendingBattleRoyale == null ||
+                !_pendingBattleRoyale.CanPlayerAct(playerIndex) ||
+                count < 1 ||
+                !DoesPlayBeatCurrent(unitShape, count, _pendingBattleRoyale.CurrentWinningShape, _pendingBattleRoyale.CurrentWinningCount) ||
+                player.UnitCounts.Get(unitShape) < count ||
+                !player.TrySpendUnit(unitShape, count))
+            {
+                return false;
+            }
+
+            _pendingBattleRoyale.CommitWinningPlay(playerIndex, unitShape, count);
+            ResolveBattleRoyaleIfComplete();
+            return true;
+        }
+
+        public bool TryPlayBattleRoyaleUnits(int playerIndex, IReadOnlyDictionary<UnitShape, int> unitCounts)
+        {
+            if (unitCounts == null)
+            {
+                throw new ArgumentNullException(nameof(unitCounts));
+            }
+
+            List<KeyValuePair<UnitShape, int>> committedShapes = unitCounts
+                .Where(unitCount => unitCount.Value > 0)
+                .ToList();
+
+            if (committedShapes.Count != 1)
+            {
+                return false;
+            }
+
+            return TryPlayBattleRoyaleUnits(playerIndex, committedShapes[0].Key, committedShapes[0].Value);
+        }
+
+        public bool TryPassBattleRoyale(int playerIndex)
+        {
+            GetPlayer(playerIndex);
+
+            if (_pendingBattleRoyale == null || !_pendingBattleRoyale.CanPlayerAct(playerIndex))
+            {
+                return false;
+            }
+
+            _pendingBattleRoyale.Pass(playerIndex);
+            ResolveBattleRoyaleIfComplete();
+            return true;
         }
 
         public bool TryPlayResourceTheft(int playerIndex, int targetPlayerIndex, ResourceType resourceType)
@@ -363,7 +440,22 @@ namespace ShapesOfWar.Domain
 
         private bool CanChooseActionPhaseOption(int playerIndex)
         {
-            return _actionPhaseChoices[playerIndex] == ActionPhaseChoice.None && _pendingAction == null;
+            return _actionPhaseChoices[playerIndex] == ActionPhaseChoice.None &&
+                _pendingAction == null &&
+                _pendingBattleRoyale == null;
+        }
+
+        private void ResolveBattleRoyaleIfComplete()
+        {
+            if (_pendingBattleRoyale == null || !_pendingBattleRoyale.IsComplete)
+            {
+                return;
+            }
+
+            Player winner = GetPlayer(_pendingBattleRoyale.CurrentWinningPlayerIndex);
+            winner.AddUnit(_pendingBattleRoyale.CurrentWinningShape, 1);
+            TryDrawActionCard(winner.Index);
+            _pendingBattleRoyale = null;
         }
 
         private bool ResolveUncounteredAction(PendingAction action)
@@ -475,6 +567,38 @@ namespace ShapesOfWar.Domain
             return false;
         }
 
+        private static bool DoesPlayBeatCurrent(
+            UnitShape playShape,
+            int playCount,
+            UnitShape currentShape,
+            int currentCount)
+        {
+            if (playShape == currentShape)
+            {
+                return false;
+            }
+
+            if (playShape == UnitShape.Triangle && playCount == 1)
+            {
+                return currentShape == UnitShape.Square && currentCount == 1 ||
+                    currentShape == UnitShape.Circle && currentCount == 1;
+            }
+
+            if (playShape == UnitShape.Square)
+            {
+                return playCount == 2 && currentShape == UnitShape.Triangle && currentCount == 1 ||
+                    playCount == 1 && currentShape == UnitShape.Circle && currentCount == 1;
+            }
+
+            if (playShape == UnitShape.Circle)
+            {
+                return playCount == 2 && currentShape == UnitShape.Square && currentCount == 1 ||
+                    playCount == 3 && currentShape == UnitShape.Triangle && currentCount == 1;
+            }
+
+            return false;
+        }
+
         private sealed class PendingAction
         {
             private PendingAction(
@@ -555,6 +679,82 @@ namespace ShapesOfWar.Domain
             {
                 DefendingUnitShape = unitShape;
                 DefendingUnitCount = count;
+            }
+        }
+
+        private sealed class BattleRoyaleState
+        {
+            private readonly List<int> _playerOrder;
+            private readonly HashSet<int> _activePlayerIndexes;
+
+            private BattleRoyaleState(IEnumerable<int> playerOrder, int starterPlayerIndex, UnitShape startingShape)
+            {
+                _playerOrder = playerOrder.ToList();
+                CurrentWinningPlayerIndex = starterPlayerIndex;
+                CurrentWinningShape = startingShape;
+                CurrentWinningCount = 1;
+                _activePlayerIndexes = _playerOrder
+                    .Where(playerIndex => playerIndex != starterPlayerIndex)
+                    .ToHashSet();
+                CurrentActingPlayerIndex = GetNextActivePlayerAfter(starterPlayerIndex);
+            }
+
+            public int CurrentWinningPlayerIndex { get; private set; }
+
+            public UnitShape CurrentWinningShape { get; private set; }
+
+            public int CurrentWinningCount { get; private set; }
+
+            public int? CurrentActingPlayerIndex { get; private set; }
+
+            public bool IsComplete => _activePlayerIndexes.Count == 0;
+
+            public static BattleRoyaleState Start(IEnumerable<int> playerOrder, int starterPlayerIndex, UnitShape startingShape)
+            {
+                return new BattleRoyaleState(playerOrder, starterPlayerIndex, startingShape);
+            }
+
+            public bool CanPlayerAct(int playerIndex)
+            {
+                return CurrentActingPlayerIndex == playerIndex &&
+                    _activePlayerIndexes.Contains(playerIndex);
+            }
+
+            public void CommitWinningPlay(int playerIndex, UnitShape unitShape, int count)
+            {
+                int previousWinner = CurrentWinningPlayerIndex;
+                CurrentWinningPlayerIndex = playerIndex;
+                CurrentWinningShape = unitShape;
+                CurrentWinningCount = count;
+                _activePlayerIndexes.Add(previousWinner);
+                _activePlayerIndexes.Remove(playerIndex);
+                CurrentActingPlayerIndex = GetNextActivePlayerAfter(playerIndex);
+            }
+
+            public void Pass(int playerIndex)
+            {
+                _activePlayerIndexes.Remove(playerIndex);
+                CurrentActingPlayerIndex = GetNextActivePlayerAfter(playerIndex);
+            }
+
+            private int? GetNextActivePlayerAfter(int playerIndex)
+            {
+                if (_activePlayerIndexes.Count == 0)
+                {
+                    return null;
+                }
+
+                int currentIndex = _playerOrder.IndexOf(playerIndex);
+                for (int offset = 1; offset <= _playerOrder.Count; offset++)
+                {
+                    int candidate = _playerOrder[(currentIndex + offset) % _playerOrder.Count];
+                    if (_activePlayerIndexes.Contains(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+
+                return null;
             }
         }
     }

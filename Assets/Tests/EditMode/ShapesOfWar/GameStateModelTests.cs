@@ -569,18 +569,36 @@ namespace ShapesOfWar.Domain.Tests
         }
 
         [Test]
-        public void BattleRoyaleActionPhaseChoiceDoesNotResolveBattleRoyaleInPr004()
+        public void BattleRoyaleActionPhaseChoiceStartsPendingBattleRoyale()
         {
-            Game game = CreateSetupGame();
+            Game game = CreateActionCardGame(
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Square] = 1
+                        }),
+                    actionCards: new ActionCardHand(new[] { ActionCardType.ResourceTheft })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Stone] = 1
+                        })));
 
-            bool started = game.TryStartBattleRoyaleActionPhase(0);
+            bool started = game.TryStartBattleRoyale(0, UnitShape.Square);
             bool playedActionCard = game.TryPlayResourceTheft(0, 1, ResourceType.Stone);
 
             PlayerPublicState state = game.Players[0].ToPublicState();
             Assert.That(started, Is.True);
             Assert.That(playedActionCard, Is.False);
             Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.BattleRoyale));
-            Assert.That(state.UnitCounts[UnitShape.Square], Is.EqualTo(3));
+            Assert.That(game.HasPendingBattleRoyale, Is.True);
+            Assert.That(state.UnitCounts[UnitShape.Square], Is.EqualTo(0));
         }
 
         [Test]
@@ -1302,6 +1320,242 @@ namespace ShapesOfWar.Domain.Tests
             Assert.That(HasPublicActionCardIdentityProperty(typeof(PlayerPublicState)), Is.False);
         }
 
+        [Test]
+        public void StartingBattleRoyaleRequiresStarterToOwnCommittedUnit()
+        {
+            Game game = CreateActionCardGame(CreatePlayer(0, "Player 1"), CreatePlayer(1, "Player 2"));
+
+            bool started = game.TryStartBattleRoyale(0, UnitShape.Triangle);
+
+            Assert.That(started, Is.False);
+            Assert.That(game.HasPendingBattleRoyale, Is.False);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.None));
+        }
+
+        [Test]
+        public void StartingBattleRoyaleCommitsExactlyOneStarterUnit()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 2)),
+                CreatePlayer(1, "Player 2"));
+
+            bool started = game.TryStartBattleRoyale(0, UnitShape.Square);
+
+            Assert.That(started, Is.True);
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void StartingBattleRoyaleRecordsStarterAsCurrentWinnerAndCommittedPlay()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Circle, 1)),
+                CreatePlayer(1, "Player 2"));
+
+            bool started = game.TryStartBattleRoyale(0, UnitShape.Circle);
+
+            Assert.That(started, Is.True);
+            Assert.That(game.BattleRoyaleCurrentWinningPlayerIndex, Is.EqualTo(0));
+            Assert.That(game.BattleRoyaleCurrentWinningShape, Is.EqualTo(UnitShape.Circle));
+            Assert.That(game.BattleRoyaleCurrentWinningCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void MixedShapeBattleRoyalePlaysAreRejected()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    unitCounts: new EnumCountSet<UnitShape>(
+                        new Dictionary<UnitShape, int>
+                        {
+                            [UnitShape.Triangle] = 1,
+                            [UnitShape.Square] = 1
+                        })));
+
+            game.TryStartBattleRoyale(0, UnitShape.Square);
+            bool played = game.TryPlayBattleRoyaleUnits(
+                1,
+                new Dictionary<UnitShape, int>
+                {
+                    [UnitShape.Triangle] = 1,
+                    [UnitShape.Square] = 1
+                });
+
+            Assert.That(played, Is.False);
+            Assert.That(game.BattleRoyaleCurrentWinningPlayerIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void SameShapeBattleRoyalePlaysAreRejectedEvenWithHigherCount()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(1, "Player 2", unitCounts: Units(UnitShape.Square, 2)));
+
+            game.TryStartBattleRoyale(0, UnitShape.Square);
+            bool played = game.TryPlayBattleRoyaleUnits(1, UnitShape.Square, 2);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(2));
+        }
+
+        [Test]
+        public void InsufficientBattleRoyalePlaysAreRejected()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Triangle, 1)),
+                CreatePlayer(1, "Player 2", unitCounts: Units(UnitShape.Square, 1)));
+
+            game.TryStartBattleRoyale(0, UnitShape.Triangle);
+            bool played = game.TryPlayBattleRoyaleUnits(1, UnitShape.Square, 1);
+
+            Assert.That(played, Is.False);
+            Assert.That(game.BattleRoyaleCurrentWinningPlayerIndex, Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+        }
+
+        [TestCase(UnitShape.Square, UnitShape.Triangle, 1)]
+        [TestCase(UnitShape.Circle, UnitShape.Triangle, 1)]
+        [TestCase(UnitShape.Triangle, UnitShape.Square, 2)]
+        [TestCase(UnitShape.Circle, UnitShape.Square, 1)]
+        [TestCase(UnitShape.Square, UnitShape.Circle, 2)]
+        [TestCase(UnitShape.Triangle, UnitShape.Circle, 3)]
+        public void DocumentedBattleRoyaleCombatPlaysBeatCurrentWinningPlay(
+            UnitShape startingShape,
+            UnitShape challengingShape,
+            int challengingCount)
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(startingShape, 1)),
+                CreatePlayer(1, "Player 2", unitCounts: Units(challengingShape, challengingCount)));
+
+            game.TryStartBattleRoyale(0, startingShape);
+            bool played = game.TryPlayBattleRoyaleUnits(1, challengingShape, challengingCount);
+
+            Assert.That(played, Is.True);
+            Assert.That(game.BattleRoyaleCurrentWinningPlayerIndex, Is.EqualTo(1));
+            Assert.That(game.BattleRoyaleCurrentWinningShape, Is.EqualTo(challengingShape));
+            Assert.That(game.BattleRoyaleCurrentWinningCount, Is.EqualTo(challengingCount));
+        }
+
+        [Test]
+        public void PassingRemovesPlayerFromCurrentBattleRoyale()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(1, "Player 2", unitCounts: Units(UnitShape.Triangle, 1)),
+                CreatePlayer(2, "Player 3", unitCounts: Units(UnitShape.Triangle, 1)));
+
+            game.TryStartBattleRoyale(0, UnitShape.Square);
+            bool passed = game.TryPassBattleRoyale(1);
+            bool rejoined = game.TryPlayBattleRoyaleUnits(1, UnitShape.Triangle, 1);
+
+            Assert.That(passed, Is.True);
+            Assert.That(rejoined, Is.False);
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Triangle], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void IfEveryOtherPlayerPassesCurrentWinnerWins()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(1, "Player 2"),
+                CreatePlayer(2, "Player 3"));
+
+            game.TryStartBattleRoyale(0, UnitShape.Square);
+            bool firstPass = game.TryPassBattleRoyale(1);
+            bool secondPass = game.TryPassBattleRoyale(2);
+
+            Assert.That(firstPass, Is.True);
+            Assert.That(secondPass, Is.True);
+            Assert.That(game.HasPendingBattleRoyale, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void IfNobodyJoinsAfterStarterTheStarterWins()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Circle, 1)),
+                CreatePlayer(1, "Player 2"));
+
+            game.TryStartBattleRoyale(0, UnitShape.Circle);
+            bool passed = game.TryPassBattleRoyale(1);
+
+            Assert.That(passed, Is.True);
+            Assert.That(game.HasPendingBattleRoyale, Is.False);
+            Assert.That(game.Players[0].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Circle], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WinnerKeepsOneUnitAndDrawsOneActionCardAfterBattleRoyale()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Triangle, 1)),
+                CreatePlayer(1, "Player 2", unitCounts: Units(UnitShape.Square, 2)));
+
+            game.TryStartBattleRoyale(0, UnitShape.Triangle);
+            game.TryPlayBattleRoyaleUnits(1, UnitShape.Square, 2);
+            bool passed = game.TryPassBattleRoyale(0);
+
+            Assert.That(passed, Is.True);
+            Assert.That(game.HasPendingBattleRoyale, Is.False);
+            Assert.That(game.Players[1].ToPublicState().ActionCardCount, Is.EqualTo(1));
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AllNonWinningCommittedUnitsAreDiscardedAfterBattleRoyale()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(1, "Player 2", unitCounts: Units(UnitShape.Triangle, 1)));
+
+            game.TryStartBattleRoyale(0, UnitShape.Square);
+            game.TryPlayBattleRoyaleUnits(1, UnitShape.Triangle, 1);
+            game.TryPassBattleRoyale(0);
+
+            Assert.That(game.Players[0].ToPublicState().UnitCounts[UnitShape.Square], Is.EqualTo(0));
+            Assert.That(game.Players[1].ToPublicState().UnitCounts[UnitShape.Triangle], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void BattleRoyaleCannotStartAfterPlayerUsedActionPhaseChoice()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(1, "Player 2"));
+
+            bool passed = game.TryPassActionPhase(0);
+            bool started = game.TryStartBattleRoyale(0, UnitShape.Square);
+
+            Assert.That(passed, Is.True);
+            Assert.That(started, Is.False);
+            Assert.That(game.HasPendingBattleRoyale, Is.False);
+        }
+
+        [Test]
+        public void BattleRoyaleStateClearsAfterResolution()
+        {
+            Game game = CreateBattleRoyaleGame(
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Square, 1)),
+                CreatePlayer(1, "Player 2"));
+
+            game.TryStartBattleRoyale(0, UnitShape.Square);
+            game.TryPassBattleRoyale(1);
+
+            Assert.That(game.HasPendingBattleRoyale, Is.False);
+            Assert.That(game.BattleRoyaleCurrentWinningPlayerIndex, Is.Null);
+            Assert.That(game.BattleRoyaleCurrentWinningShape, Is.Null);
+            Assert.That(game.BattleRoyaleCurrentWinningCount, Is.Null);
+        }
+
         private static Game CreateGame(int playerCount)
         {
             return new Game(Enumerable.Range(0, playerCount).Select(index => CreatePlayer(index, $"Player {index + 1}")));
@@ -1310,6 +1564,11 @@ namespace ShapesOfWar.Domain.Tests
         private static Game CreateActionCardGame(Player playerOne, Player playerTwo)
         {
             return new Game(new[] { playerOne, playerTwo }, new ActionCardDeck(Array.Empty<ActionCardType>()));
+        }
+
+        private static Game CreateBattleRoyaleGame(params Player[] players)
+        {
+            return new Game(players);
         }
 
         private static Game CreateRaidGame(UnitShape raidingUnitShape)
@@ -1350,6 +1609,15 @@ namespace ShapesOfWar.Domain.Tests
                         {
                             [defendingUnitShape] = defendingUnitCount
                         })));
+        }
+
+        private static EnumCountSet<UnitShape> Units(UnitShape unitShape, int count)
+        {
+            return new EnumCountSet<UnitShape>(
+                new Dictionary<UnitShape, int>
+                {
+                    [unitShape] = count
+                });
         }
 
         private static Player CreatePlayer(

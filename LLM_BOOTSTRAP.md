@@ -269,7 +269,7 @@ Current implementation status:
 - PR-003: Action Card Deck and Spend-Phase Card Acquisition is implemented.
 - PR-004: Action Phase Choice and Non-Raid Action Cards is implemented.
 - PR-005: Raid Base is implemented.
-- PR-006: Battle Royale is not implemented.
+- PR-006: Battle Royale is implemented.
 - PR-007: Elimination and Game End is not implemented.
 - PR-008: Minimal Playable UI / Debug Harness is not implemented.
 
@@ -333,6 +333,20 @@ PR-005 implementation summary:
 - Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
 - Focused local PR-005 domain validation passed for successful raids, defended raids, and Counter-stopped raids.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-006 implementation summary:
+
+- Implemented pending Battle Royale state as domain logic separate from action-card pending actions.
+- Starting Battle Royale requires committing 1 unit and consumes the active player's action phase choice.
+- Battle Royale plays use one shape type only and must match the documented combat assumptions to beat the current winning play.
+- Passing removes a player from the current Battle Royale and prevents rejoining that battle.
+- When all other active battle participants pass, the current winner draws 1 action card and keeps 1 unit from the winning committed play.
+- Losing committed units and extra winning committed units beyond the kept 1 are discarded back to circulation.
+- Mixed-shape combat remains unimplemented and future-variant only.
+- Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Focused local PR-006 domain validation passed for starter wins, challenger wins, same-shape rejection, winner draw, winner unit retention, and losing committed unit discard.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
 
 Known roadmap blockers:
