@@ -49,4 +49,3 @@ The game may later become a card game, a board/card hybrid, or a digital/mobile 
 ## Not Currently Defined
 
 - physical production component counts for a printed prototype
-- whether action card hand counts are public or hidden

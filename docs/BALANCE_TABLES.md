@@ -86,7 +86,7 @@ These tables collect the current numeric foundation. They are not a full balance
 | --- | --- |
 | Wood, Stone, and Metal totals | Public |
 | Action card identities | Private |
-| Action card hand counts | Unresolved |
+| Action card hand counts | Public |
 
 ## Supply Circulation
 

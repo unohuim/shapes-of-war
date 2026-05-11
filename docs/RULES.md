@@ -150,7 +150,7 @@ Action deck composition:
 
 Action card hand size is unlimited.
 
-Action card identities are private and hidden. Whether action card hand counts are public or hidden is unresolved.
+Each player's total action card count is public. Action card identities are private and hidden. Players may know how many action cards each opponent has, but may not know which action cards opponents hold unless a future rule explicitly reveals them.
 
 Raid Base, Resource Theft, and Unit Kill may only be played during the active player's action phase. Counter may only be played as a response.
 
