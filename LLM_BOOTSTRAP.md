@@ -99,6 +99,10 @@ Each player starts with:
 - Resource supplies are effectively unlimited and recycled.
 - Spent resources return to circulation.
 - Trading and negotiation are not allowed.
+- Resource exchange is allowed during the Spend Resources phase as bank-style conversion, not player trading or negotiation.
+- Valid exchanges are 1 Stone -> 2 Wood, 1 Metal -> 3 Wood, and 1 Metal -> 1 Stone + 1 Wood.
+- A player may exchange resources multiple times during Spend Resources, including in the same phase as buying units, upgrading bases, and sacrificing a Triangle for an action card.
+- There is no trading up.
 
 ### Resource Production
 
@@ -125,13 +129,15 @@ Action deck composition:
 
 Action card acquisition:
 
-- Sacrifice or discard 1 unit during the spend phase to draw 1 action card.
+- Sacrifice or discard 1 Triangle during the spend phase to draw 1 action card.
 - Win Battle Royale to draw 1 action card.
 - Eliminate another player to draw 1 action card.
 
-If a player attempts to sacrifice or discard a unit to draw an action card but no card can be drawn because both the action card deck and discard pile are empty, the unit is not consumed.
+Squares and Circles cannot be sacrificed or discarded to draw action cards.
 
-Sacrificed or discarded units return to shared supply or circulation and are not permanently removed from the game.
+If a player attempts to sacrifice or discard a Triangle to draw an action card but no card can be drawn because both the action card deck and discard pile are empty, the Triangle is not consumed.
+
+Sacrificed or discarded Triangles return to shared supply or circulation and are not permanently removed from the game.
 
 Used action cards go to an action card discard pile after resolution. Counter cards used in Counter chains also go to the discard pile after the chain resolves.
 
@@ -150,7 +156,8 @@ During the spend resources step, the active player may:
 
 - buy units
 - upgrade their base
-- sacrifice or discard 1 unit to draw 1 action card
+- exchange resources
+- sacrifice or discard 1 Triangle to draw 1 action card
 
 During the action phase, the active player chooses exactly one:
 
@@ -271,7 +278,8 @@ Current implementation status:
 - PR-005: Raid Base is implemented.
 - PR-006: Battle Royale is implemented.
 - PR-007: Elimination and Game End is implemented.
-- PR-008: Minimal Playable UI / Debug Harness is not implemented.
+- PR-008: Minimal Playable UI / Debug Harness is implemented.
+- PR-009: Economy Balance Rules is implemented.
 
 PR-001 implementation summary:
 
@@ -285,11 +293,11 @@ PR-001 implementation summary:
 PR-002 implementation summary:
 
 - Implemented setup through `Game.CreateNew(...)`.
-- Implemented unit counting, resource collection, unit buying, linear base upgrades, and spend-phase unit sacrifice for action card draw.
+- Implemented unit counting, resource collection, unit buying, linear base upgrades, and the spend-phase action-card sacrifice hook later narrowed by PR-009 to Triangle only.
 - Setup creates each player with Wood Base, 3 base points, 3 Squares, 0 Wood, 0 Stone, 0 Metal, and 0 action cards.
 - Buying units spends the documented resource cost and adds the unit immediately.
 - Base upgrades support Wood -> Stone and Stone -> Metal only.
-- Sacrificing a unit removes 1 unit of the chosen shape and draws 1 action card if the deck has one.
+- PR-009 later changed action-card sacrifice to Triangle only.
 - Added EditMode tests in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
@@ -299,7 +307,7 @@ PR-003 implementation summary:
 - Formalized action card draw pile plus discard pile behavior in `ActionCardDeck`.
 - Added draw hooks through `Game.TryDrawActionCard(...)`.
 - Added used-card discard hook through `Game.DiscardUsedActionCard(...)`.
-- Spend-phase unit sacrifice draws through the formal deck behavior.
+- Spend-phase Triangle sacrifice draws through the formal deck behavior.
 - Empty deck draws reshuffle the discard pile into a new deck.
 - Empty deck plus empty discard pile draws no card.
 - Preserved public action card count with private/internal action card identities.
@@ -361,6 +369,31 @@ PR-007 implementation summary:
 - Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
 - Focused local PR-007 domain validation passed for Raid Base elimination, cleanup, reward draw, eliminated-player action blocking, game over, and winner recording.
 - Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-008 implementation summary:
+
+- Implemented a Unity UI Toolkit hotseat debug harness with editable UXML, USS, PanelSettings, and runtime theme assets under `Assets/UI/ShapesOfWar/`.
+- `Assets/Scripts/UI/ShapesOfWar/ShapesOfWarHotseatHarness.cs` binds to named UXML containers and handles domain state, event binding, and dynamic content rendering.
+- The harness supports 2-4 player local game creation, public player state display, reveal/pass privacy flow, active-player private hand display, resource collection, unit buying, base upgrades, sacrifice-to-draw, action phase pass, Resource Theft, Unit Kill, Raid Base, Counter responses, raid defense, Battle Royale, elimination, and game-over display.
+- Added narrow domain UI helpers for active-player private hand lookup, Battle Royale current acting player, and action-phase choice reset for later hotseat turns.
+- Added EditMode coverage for those helper APIs in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
+PR-009 implementation summary:
+
+- Implemented bank-style resource exchange in `Game`:
+  - 1 Stone -> 2 Wood.
+  - 1 Metal -> 3 Wood.
+  - 1 Metal -> 1 Stone and 1 Wood.
+- Resource exchange can happen multiple times during Spend Resources and in the same phase as buying units, upgrading bases, and sacrificing a Triangle for an action card.
+- Trading up remains unavailable.
+- Updated sacrifice-to-draw so only Triangles can be sacrificed. Square and Circle sacrifice attempts fail without consuming the unit or drawing a card.
+- Updated the hotseat harness economy panel with resource exchange controls and a Triangle-only sacrifice control.
+- Added EditMode coverage for resource exchange and Triangle-only sacrifice behavior in `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`.
+- `dotnet build Assembly-CSharp.csproj --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet build ShapesOfWar.Domain.Tests.csproj --no-restore` passed with 0 warnings and 0 errors.
+- Unity batch EditMode test command was attempted, but no result or log file was produced in this environment.
 
 Known roadmap blockers:
 

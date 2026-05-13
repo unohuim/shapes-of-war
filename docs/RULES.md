@@ -91,9 +91,19 @@ Resource storage is unlimited. Players may hold unlimited Wood, Stone, and Metal
 
 Resources are public. Each player's Wood, Stone, and Metal totals are visible to all players.
 
-Unit and resource supplies are effectively unlimited. Spent resources and discarded or sacrificed units return to circulation. Physical component scarcity is not a gameplay rule.
+Unit and resource supplies are effectively unlimited. Spent resources, discarded units, and Triangles sacrificed for action cards return to circulation. Physical component scarcity is not a gameplay rule.
 
 Trading and negotiation are not allowed.
+
+Resource exchange is allowed during the Spend Resources phase. These are bank-style conversions, not player trading or negotiation. A player may exchange resources multiple times during Spend Resources, including in the same phase as buying units, upgrading bases, and sacrificing a Triangle for an action card.
+
+Valid exchanges:
+
+- 1 Metal -> 3 Wood
+- 1 Metal -> 1 Stone + 1 Wood
+- 1 Stone -> 2 Wood
+
+There is no trading up.
 
 ## Turn Structure
 
@@ -108,11 +118,12 @@ During the spend resources step, the active player may:
 
 - buy units
 - upgrade their base
-- sacrifice or discard 1 unit to draw 1 action card
+- exchange resources
+- sacrifice or discard 1 Triangle to draw 1 action card
 
 Bought units enter play immediately. Units purchased during the spend phase are available for later choices in that same turn, unless an existing rule explicitly prevents it.
 
-Units sacrificed or discarded to draw action cards return to the shared supply or circulation. They are not permanently removed from the game.
+Only Triangles may be sacrificed or discarded to draw action cards. Squares and Circles cannot be sacrificed or discarded to draw action cards. Units sacrificed or discarded to draw action cards return to the shared supply or circulation. They are not permanently removed from the game.
 
 During the action phase, the active player may choose one:
 
@@ -218,11 +229,11 @@ Mixed-shape Battle Royale plays are not currently allowed. Players must commit o
 
 Current action card sources:
 
-- Sacrifice or discard 1 unit during the spend phase to draw 1 action card.
+- Sacrifice or discard 1 Triangle during the spend phase to draw 1 action card.
 - Win Battle Royale to draw 1 action card.
 - Eliminate another player to draw 1 action card.
 
-If a player attempts to sacrifice or discard a unit to draw an action card but no card can be drawn because both the action card deck and discard pile are empty, the unit is not consumed.
+If a player attempts to sacrifice or discard a Triangle to draw an action card but no card can be drawn because both the action card deck and discard pile are empty, the Triangle is not consumed.
 
 No other action-card acquisition methods are currently defined.
 

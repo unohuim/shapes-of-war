@@ -33,6 +33,18 @@ These tables collect the current numeric foundation. They are not a full balance
 | Square | 1 Stone |
 | Circle | 1 Wood |
 
+## Resource Exchange
+
+Resource exchange is bank-style conversion during the Spend Resources phase. It is not player trading or negotiation.
+
+| Paid | Received |
+| --- | --- |
+| 1 Metal | 3 Wood |
+| 1 Metal | 1 Stone and 1 Wood |
+| 1 Stone | 2 Wood |
+
+There is no trading up.
+
 ## Starting Setup
 
 | Item | Starting Value |
@@ -96,7 +108,9 @@ These tables collect the current numeric foundation. They are not a full balance
 | Unit supply | Effectively unlimited |
 | Resource supply | Effectively unlimited |
 | Spent resources | Return to circulation |
-| Discarded or sacrificed units | Return to circulation |
+| Discarded units | Return to circulation |
+| Triangles sacrificed for action cards | Return to circulation |
+| Sacrifice for action card | Triangle only |
 | Used action cards | Move to action card discard pile after resolution |
 | Empty action card deck | Shuffle discard pile into a new deck when a draw is needed |
 | Empty deck and empty discard pile | No card is drawn |

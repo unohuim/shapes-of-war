@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <Style src="ShapesOfWarHotseatHarness.uss" />
+    <ui:VisualElement name="hotseat-root" class="app-root">
+        <ui:VisualElement name="header" class="header" />
+        <ui:ScrollView name="main-scroll" class="main-scroll">
+            <ui:VisualElement name="setup-panel" class="panel" />
+            <ui:VisualElement name="pass-screen" class="panel pass-screen" />
+            <ui:VisualElement name="turn-panel" class="panel" />
+            <ui:VisualElement name="public-state" class="panel" />
+            <ui:VisualElement name="private-hand" class="panel" />
+            <ui:VisualElement name="economy-controls" class="panel" />
+            <ui:VisualElement name="action-phase-controls" class="panel" />
+            <ui:VisualElement name="pending-action" class="panel" />
+            <ui:VisualElement name="battle-royale" class="panel" />
+            <ui:VisualElement name="game-over" class="panel game-over" />
+        </ui:ScrollView>
+        <ui:VisualElement name="status" class="status-panel">
+            <ui:Label name="status-label" class="status-label" text="Create a game to begin." />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

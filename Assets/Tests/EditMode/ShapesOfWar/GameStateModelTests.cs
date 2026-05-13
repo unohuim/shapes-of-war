@@ -131,6 +131,26 @@ namespace ShapesOfWar.Domain.Tests
         }
 
         [Test]
+        public void PrivateActionCardHandCanBeRequestedForAPlayer()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.Counter, ActionCardType.RaidBase })),
+                CreatePlayer(
+                    1,
+                    "Player 2",
+                    actionCards: new ActionCardHand(new[] { ActionCardType.UnitKill }))
+            });
+
+            IReadOnlyList<ActionCardType> hand = game.GetPrivateActionCardHand(0);
+
+            Assert.That(hand, Is.EqualTo(new[] { ActionCardType.Counter, ActionCardType.RaidBase }));
+        }
+
+        [Test]
         public void StandardActionDeckContainsDocumentedComposition()
         {
             ActionCardDeck deck = ActionCardDeck.CreateStandard();
@@ -237,17 +257,17 @@ namespace ShapesOfWar.Domain.Tests
                         unitCounts: new EnumCountSet<UnitShape>(
                             new Dictionary<UnitShape, int>
                             {
-                                [UnitShape.Square] = 1
+                                [UnitShape.Triangle] = 1
                             })),
                     CreatePlayer(1, "Player 2")
                 },
                 new ActionCardDeck(Array.Empty<ActionCardType>()));
 
-            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Square);
+            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Triangle);
 
             PlayerPublicState state = game.Players[0].ToPublicState();
             Assert.That(sacrificed, Is.False);
-            Assert.That(state.UnitCounts[UnitShape.Square], Is.EqualTo(1));
+            Assert.That(state.UnitCounts[UnitShape.Triangle], Is.EqualTo(1));
             Assert.That(state.ActionCardCount, Is.EqualTo(0));
         }
 
@@ -263,17 +283,17 @@ namespace ShapesOfWar.Domain.Tests
                         unitCounts: new EnumCountSet<UnitShape>(
                             new Dictionary<UnitShape, int>
                             {
-                                [UnitShape.Square] = 1
+                                [UnitShape.Triangle] = 1
                             })),
                     CreatePlayer(1, "Player 2")
                 },
                 new ActionCardDeck(Array.Empty<ActionCardType>()));
 
-            bool sacrificed = game.TrySacrificeUnitForActionCard(0, UnitShape.Square);
+            bool sacrificed = game.TrySacrificeUnitForActionCard(0, UnitShape.Triangle);
 
             PlayerPublicState state = game.Players[0].ToPublicState();
             Assert.That(sacrificed, Is.False);
-            Assert.That(state.UnitCounts[UnitShape.Square], Is.EqualTo(1));
+            Assert.That(state.UnitCounts[UnitShape.Triangle], Is.EqualTo(1));
             Assert.That(state.ActionCardCount, Is.EqualTo(0));
         }
 
@@ -394,19 +414,225 @@ namespace ShapesOfWar.Domain.Tests
                     resourceCounts: new EnumCountSet<ResourceType>(
                         new Dictionary<ResourceType, int>
                         {
-                            [ResourceType.Wood] = 1
+                            [ResourceType.Metal] = 1
                         })),
                 CreatePlayer(1, "Player 2")
             });
 
-            bool bought = game.TryBuyUnit(0, UnitShape.Circle);
-            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Circle);
+            bool bought = game.TryBuyUnit(0, UnitShape.Triangle);
+            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Triangle);
 
             PlayerPublicState state = game.Players[0].ToPublicState();
             Assert.That(bought, Is.True);
             Assert.That(sacrificed, Is.True);
-            Assert.That(state.UnitCounts[UnitShape.Circle], Is.EqualTo(0));
+            Assert.That(state.UnitCounts[UnitShape.Triangle], Is.EqualTo(0));
             Assert.That(state.ActionCardCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void StoneCanBeExchangedForTwoWood()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", resourceCounts: Resources(ResourceType.Stone, 1)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool exchanged = game.TryExchangeStoneForWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(2));
+        }
+
+        [Test]
+        public void StoneExchangeFailsWithoutEnoughStone()
+        {
+            Game game = CreateSetupGame();
+
+            bool exchanged = game.TryExchangeStoneForWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.False);
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void MetalCanBeExchangedForThreeWood()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", resourceCounts: Resources(ResourceType.Metal, 1)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool exchanged = game.TryExchangeMetalForWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(3));
+        }
+
+        [Test]
+        public void MetalCanBeExchangedForStoneAndWood()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", resourceCounts: Resources(ResourceType.Metal, 1)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool exchanged = game.TryExchangeMetalForStoneAndWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(1));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void MetalExchangeFailsWithoutEnoughMetal()
+        {
+            Game game = CreateSetupGame();
+
+            bool exchangedForWood = game.TryExchangeMetalForWood(0);
+            bool exchangedForStoneAndWood = game.TryExchangeMetalForStoneAndWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchangedForWood, Is.False);
+            Assert.That(exchangedForStoneAndWood, Is.False);
+            Assert.That(state.ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ResourceExchangeCanHappenAfterResourceCollection()
+        {
+            Game game = CreateSetupGame();
+
+            game.CollectResources(0);
+            bool exchanged = game.TryExchangeStoneForWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(2));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ResourceExchangeCanHappenBeforeBuyingAUnit()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", resourceCounts: Resources(ResourceType.Stone, 1)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool exchanged = game.TryExchangeStoneForWood(0);
+            bool bought = game.TryBuyUnit(0, UnitShape.Circle);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(bought, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(1));
+            Assert.That(state.UnitCounts[UnitShape.Circle], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ResourceExchangeCanHappenMultipleTimesInTheSameSpendPhase()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", resourceCounts: Resources(ResourceType.Stone, 2)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool firstExchange = game.TryExchangeStoneForWood(0);
+            bool secondExchange = game.TryExchangeStoneForWood(0);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(firstExchange, Is.True);
+            Assert.That(secondExchange, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ResourceExchangeCanHappenBeforeBaseUpgrade()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    resourceCounts: new EnumCountSet<ResourceType>(
+                        new Dictionary<ResourceType, int>
+                        {
+                            [ResourceType.Stone] = 1,
+                            [ResourceType.Metal] = 1
+                        })),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool exchanged = game.TryExchangeMetalForStoneAndWood(0);
+            bool upgraded = game.TryUpgradeBase(0, BaseType.Stone);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(upgraded, Is.True);
+            Assert.That(state.BaseType, Is.EqualTo(BaseType.Stone));
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(1));
+            Assert.That(state.ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ResourceExchangeCanHappenBeforeTriangleSacrifice()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(
+                    0,
+                    "Player 1",
+                    unitCounts: Units(UnitShape.Triangle, 1),
+                    resourceCounts: Resources(ResourceType.Stone, 1)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool exchanged = game.TryExchangeStoneForWood(0);
+            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Triangle);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(exchanged, Is.True);
+            Assert.That(sacrificed, Is.True);
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(2));
+            Assert.That(state.UnitCounts[UnitShape.Triangle], Is.EqualTo(0));
+            Assert.That(state.ActionCardCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ResourceExchangeDoesNotAllowTradingUp()
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", resourceCounts: Resources(ResourceType.Wood, 3)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool boughtTriangle = game.TryBuyUnit(0, UnitShape.Triangle);
+            bool upgradedToStone = game.TryUpgradeBase(0, BaseType.Stone);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(boughtTriangle, Is.False);
+            Assert.That(upgradedToStone, Is.False);
+            Assert.That(state.ResourceCounts[ResourceType.Wood], Is.EqualTo(3));
+            Assert.That(state.ResourceCounts[ResourceType.Stone], Is.EqualTo(0));
+            Assert.That(state.ResourceCounts[ResourceType.Metal], Is.EqualTo(0));
         }
 
         [Test]
@@ -505,15 +731,38 @@ namespace ShapesOfWar.Domain.Tests
         [Test]
         public void SacrificingOneUnitDrawsOneActionCard()
         {
-            Game game = CreateSetupGame();
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", unitCounts: Units(UnitShape.Triangle, 1)),
+                CreatePlayer(1, "Player 2")
+            });
 
-            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Square);
+            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, UnitShape.Triangle);
 
             PlayerPublicState state = game.Players[0].ToPublicState();
             Assert.That(sacrificed, Is.True);
-            Assert.That(state.UnitCounts[UnitShape.Square], Is.EqualTo(2));
+            Assert.That(state.UnitCounts[UnitShape.Triangle], Is.EqualTo(0));
             Assert.That(state.ActionCardCount, Is.EqualTo(1));
             Assert.That(game.ActionDeck.Count, Is.EqualTo(49));
+        }
+
+        [TestCase(UnitShape.Square)]
+        [TestCase(UnitShape.Circle)]
+        public void OnlyTrianglesCanBeSacrificedForActionCards(UnitShape unitShape)
+        {
+            Game game = new Game(new[]
+            {
+                CreatePlayer(0, "Player 1", unitCounts: Units(unitShape, 1)),
+                CreatePlayer(1, "Player 2")
+            });
+
+            bool sacrificed = game.TrySacrificeUnitToDrawActionCard(0, unitShape);
+
+            PlayerPublicState state = game.Players[0].ToPublicState();
+            Assert.That(sacrificed, Is.False);
+            Assert.That(state.UnitCounts[unitShape], Is.EqualTo(1));
+            Assert.That(state.ActionCardCount, Is.EqualTo(0));
+            Assert.That(game.ActionDeck.Count, Is.EqualTo(50));
         }
 
         [Test]
@@ -539,6 +788,18 @@ namespace ShapesOfWar.Domain.Tests
 
             Assert.That(passed, Is.True);
             Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.Pass));
+        }
+
+        [Test]
+        public void ActionPhaseChoiceCanBeResetForANewTurn()
+        {
+            Game game = CreateSetupGame();
+
+            game.TryPassActionPhase(0);
+            bool reset = game.TryResetActionPhaseChoiceForNextTurn(0);
+
+            Assert.That(reset, Is.True);
+            Assert.That(game.GetActionPhaseChoice(0), Is.EqualTo(ActionPhaseChoice.None));
         }
 
         [Test]
@@ -1358,6 +1619,7 @@ namespace ShapesOfWar.Domain.Tests
             Assert.That(game.BattleRoyaleCurrentWinningPlayerIndex, Is.EqualTo(0));
             Assert.That(game.BattleRoyaleCurrentWinningShape, Is.EqualTo(UnitShape.Circle));
             Assert.That(game.BattleRoyaleCurrentWinningCount, Is.EqualTo(1));
+            Assert.That(game.BattleRoyaleCurrentActingPlayerIndex, Is.EqualTo(1));
         }
 
         [Test]

@@ -60,6 +60,11 @@ namespace ShapesOfWar.Domain
             return Players.Select(player => player.ToPublicState()).ToList();
         }
 
+        public IReadOnlyList<ActionCardType> GetPrivateActionCardHand(int playerIndex)
+        {
+            return GetPlayer(playerIndex).ActionCards.Cards.ToList();
+        }
+
         public IReadOnlyDictionary<UnitShape, int> CountUnits(int playerIndex)
         {
             return GetPlayer(playerIndex).UnitCounts.AsReadOnlyDictionary();
@@ -116,6 +121,46 @@ namespace ShapesOfWar.Domain
             return false;
         }
 
+        public bool TryExchangeStoneForWood(int playerIndex)
+        {
+            Player player = GetActivePlayer(playerIndex);
+
+            if (!player.TrySpendResource(ResourceType.Stone, 1))
+            {
+                return false;
+            }
+
+            player.AddResource(ResourceType.Wood, 2);
+            return true;
+        }
+
+        public bool TryExchangeMetalForWood(int playerIndex)
+        {
+            Player player = GetActivePlayer(playerIndex);
+
+            if (!player.TrySpendResource(ResourceType.Metal, 1))
+            {
+                return false;
+            }
+
+            player.AddResource(ResourceType.Wood, 3);
+            return true;
+        }
+
+        public bool TryExchangeMetalForStoneAndWood(int playerIndex)
+        {
+            Player player = GetActivePlayer(playerIndex);
+
+            if (!player.TrySpendResource(ResourceType.Metal, 1))
+            {
+                return false;
+            }
+
+            player.AddResource(ResourceType.Stone, 1);
+            player.AddResource(ResourceType.Wood, 1);
+            return true;
+        }
+
         public bool TrySacrificeUnitForActionCard(int playerIndex, UnitShape unitShape)
         {
             return TrySacrificeUnitToDrawActionCard(playerIndex, unitShape);
@@ -124,6 +169,11 @@ namespace ShapesOfWar.Domain
         public bool TrySacrificeUnitToDrawActionCard(int playerIndex, UnitShape unitShape)
         {
             Player player = GetActivePlayer(playerIndex);
+
+            if (unitShape != UnitShape.Triangle)
+            {
+                return false;
+            }
 
             if (player.UnitCounts.Get(unitShape) < 1)
             {
@@ -180,6 +230,21 @@ namespace ShapesOfWar.Domain
         public UnitShape? BattleRoyaleCurrentWinningShape => _pendingBattleRoyale?.CurrentWinningShape;
 
         public int? BattleRoyaleCurrentWinningCount => _pendingBattleRoyale?.CurrentWinningCount;
+
+        public int? BattleRoyaleCurrentActingPlayerIndex => _pendingBattleRoyale?.CurrentActingPlayerIndex;
+
+        public bool TryResetActionPhaseChoiceForNextTurn(int playerIndex)
+        {
+            GetActivePlayer(playerIndex);
+
+            if (_pendingAction != null || _pendingBattleRoyale != null)
+            {
+                return false;
+            }
+
+            _actionPhaseChoices[playerIndex] = ActionPhaseChoice.None;
+            return true;
+        }
 
         public bool TryPassActionPhase(int playerIndex)
         {

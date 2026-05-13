@@ -22,7 +22,7 @@ Units are represented only by shape.
 - Stone
 - Metal
 
-Unit and resource supplies are effectively unlimited for gameplay. Spent resources and discarded or sacrificed units return to circulation.
+Unit and resource supplies are effectively unlimited for gameplay. Spent resources, discarded units, and Triangles sacrificed for action cards return to circulation.
 
 ## Action Cards
 

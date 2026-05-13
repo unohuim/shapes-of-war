@@ -1,0 +1,126 @@
+.app-root {
+    flex-grow: 1;
+    background-color: rgb(13, 15, 20);
+    color: rgb(244, 247, 252);
+    font-size: 18px;
+    padding: 22px;
+}
+
+.header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.app-title {
+    color: rgb(255, 255, 255);
+    font-size: 38px;
+    -unity-font-style: bold;
+}
+
+.main-scroll {
+    flex-grow: 1;
+}
+
+.panel {
+    background-color: rgb(30, 34, 43);
+    border-radius: 6px;
+    padding: 18px;
+    margin-bottom: 14px;
+}
+
+.status-panel {
+    background-color: rgb(35, 42, 55);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-top: 12px;
+}
+
+.status-label {
+    color: rgb(255, 255, 255);
+    font-size: 18px;
+}
+
+.section-title {
+    color: rgb(255, 255, 255);
+    font-size: 24px;
+    -unity-font-style: bold;
+    margin-bottom: 10px;
+}
+
+.card-title {
+    color: rgb(255, 255, 255);
+    font-size: 20px;
+    -unity-font-style: bold;
+    margin-bottom: 8px;
+}
+
+.row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.card-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.card {
+    width: 310px;
+    background-color: rgb(42, 48, 61);
+    border-radius: 6px;
+    padding: 14px;
+    margin-right: 12px;
+    margin-bottom: 12px;
+}
+
+.pill {
+    background-color: rgb(70, 86, 110);
+    color: rgb(255, 255, 255);
+    border-radius: 6px;
+    font-size: 18px;
+    padding: 7px 12px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+.command-button {
+    background-color: rgb(32, 86, 150);
+    border-color: rgb(101, 170, 255);
+    border-width: 1px;
+    border-radius: 6px;
+    color: rgb(255, 255, 255);
+    font-size: 18px;
+    -unity-font-style: bold;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    min-height: 42px;
+    padding: 9px 16px;
+}
+
+.command-button:hover {
+    background-color: rgb(47, 116, 196);
+    border-color: rgb(145, 197, 255);
+    color: rgb(255, 255, 255);
+}
+
+.command-button:active {
+    background-color: rgb(23, 63, 113);
+    border-color: rgb(83, 146, 225);
+    color: rgb(255, 255, 255);
+}
+
+.command-button:disabled {
+    background-color: rgb(43, 48, 58);
+    border-color: rgb(78, 86, 100);
+    color: rgb(176, 184, 198);
+}
+
+.pass-screen,
+.game-over {
+    align-items: center;
+}

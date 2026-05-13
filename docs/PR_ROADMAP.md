@@ -169,8 +169,8 @@ Scope:
 - Private action card identities.
 - Public action card counts.
 - Unlimited action card hand size.
-- Sacrifice or discard 1 unit during the spend phase to draw 1 action card.
-- Sacrificed units return to supply or circulation.
+- Sacrifice or discard 1 Triangle during the spend phase to draw 1 action card.
+- Sacrificed Triangles return to supply or circulation.
 - Used action cards go to an action card discard pile after resolution.
 - Empty action deck draws reshuffle the discard pile into a new deck.
 - Empty deck plus empty discard pile draws no card.
@@ -188,16 +188,17 @@ Key rules covered:
 - Action deck composition.
 - Action card visibility.
 - Unlimited action card hand size.
-- Spend-phase unit sacrifice for card draw.
-- Discarded or sacrificed units return to circulation.
+- Spend-phase Triangle sacrifice for card draw.
+- Discarded units and sacrificed Triangles return to circulation.
 
 Suggested tests or validation checks:
 
 - Deck starts with exactly 50 cards in the documented composition.
 - Drawing a card increases only the drawing player's public hand count in opponent views.
 - Drawing a card preserves hidden card identity from opponents.
-- Sacrificing a unit reduces that player's selected unit count by 1 and draws 1 action card.
-- Cannot sacrifice a unit the player does not have.
+- Sacrificing a Triangle reduces that player's Triangle count by 1 and draws 1 action card.
+- Cannot sacrifice a Triangle the player does not have.
+- Cannot sacrifice Squares or Circles for action cards.
 
 Documentation impact:
 
@@ -465,6 +466,23 @@ Implementation blockers:
 
 ## PR-008: Minimal Playable UI / Debug Harness
 
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/UI/ShapesOfWar/ShapesOfWarHotseatHarness.cs`
+- `Assets/UI/ShapesOfWar/ShapesOfWarHotseatHarness.uxml`
+- `Assets/UI/ShapesOfWar/ShapesOfWarHotseatHarness.uss`
+- `Assets/UI/ShapesOfWar/ShapesOfWarPanelSettings.asset`
+- `Assets/UI/ShapesOfWar/ShapesOfWarRuntimeTheme.tss`
+- `Assets/Scripts/Domain/ShapesOfWar/`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- Temporary .NET/NUnit compile validation passed with 0 warnings and 0 errors for domain and EditMode test assemblies.
+- Unity batch EditMode test run could not complete in this environment because Unity exited with code 127 and produced no log or result file.
+
 Goal: Create the simplest playable prototype interface or debug harness after the domain rules exist.
 
 Scope:
@@ -515,11 +533,79 @@ Suggested tests or validation checks:
 
 Documentation impact:
 
-- Add usage notes only if the harness requires manual steps that are not obvious from the interface.
+- The harness uses normal UI Toolkit UXML, USS, PanelSettings, and theme assets under `Assets/UI/ShapesOfWar/`.
+- Use Play mode in the existing scene to start a 2-4 player hotseat game.
+- Private action-card identities are shown only after the active player uses the reveal screen.
 
 Implementation blockers:
 
-- This PR depends on PR-001 through PR-007 being complete enough to expose playable domain behavior.
+- None.
+
+## PR-009: Economy Balance Rules
+
+Status: Implemented.
+
+Implemented in:
+
+- `Assets/Scripts/Domain/ShapesOfWar/Game.cs`
+- `Assets/Scripts/UI/ShapesOfWar/ShapesOfWarHotseatHarness.cs`
+- `Assets/Tests/EditMode/ShapesOfWar/GameStateModelTests.cs`
+
+Validation:
+
+- `dotnet build Assembly-CSharp.csproj --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet build ShapesOfWar.Domain.Tests.csproj --no-restore` passed with 0 warnings and 0 errors.
+- Unity batch EditMode test command was attempted, but no result or log file was produced in this environment.
+
+Goal: Add resource exchange and restrict spend-phase action-card sacrifice to Triangles.
+
+Scope:
+
+- Bank-style resource exchange during Spend Resources.
+- Multiple resource exchanges during the same Spend Resources phase.
+- Resource exchange in the same Spend Resources phase as buying units, upgrading bases, and sacrificing a Triangle for an action card.
+- Valid exchanges:
+  - 1 Metal -> 3 Wood.
+  - 1 Metal -> 1 Stone and 1 Wood.
+  - 1 Stone -> 2 Wood.
+- Triangle-only sacrifice for action-card draw.
+- Hotseat economy controls for the valid resource exchanges.
+- Hotseat sacrifice control limited to Triangle.
+
+Out of scope:
+
+- Player trading.
+- Negotiation.
+- Trading up.
+- New resources, unit types, action cards, victory points, dice, levels, hidden stats, or mixed-shape combat.
+- Changes to Battle Royale, Raid Base, Counter, Resource Theft, Unit Kill, elimination, or game-end rules.
+
+Key rules covered:
+
+- Resource exchange is bank-style conversion, not player trading or negotiation.
+- There is no trading up.
+- Squares and Circles cannot be sacrificed for action cards.
+- Failed Square or Circle sacrifice does not consume the unit or draw a card.
+- Empty deck plus empty discard pile still does not consume a Triangle when no card can be drawn.
+
+Suggested tests or validation checks:
+
+- Each valid resource exchange spends and grants exactly the documented resources.
+- Resource exchange fails safely without enough Stone or Metal.
+- Resource exchange can happen after collection and before buying, upgrading, or Triangle sacrifice in the same Spend Resources phase.
+- Resource exchange can happen multiple times in the same Spend Resources phase.
+- Trading up remains unavailable.
+- Triangle sacrifice still draws 1 action card when a card is drawable.
+- Square and Circle sacrifice attempts fail without consuming the unit or drawing a card.
+
+Documentation impact:
+
+- `docs/RULES.md`, `docs/BALANCE_TABLES.md`, and this roadmap document the new economy balance rules.
+- `LLM_BOOTSTRAP.md` summarizes PR-009 status for future LLM onboarding.
+
+Implementation blockers:
+
+- None.
 
 ## Remaining Future Variant
 
